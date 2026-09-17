@@ -1,0 +1,14 @@
+{
+  "name": "traffic-control-pilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "demo": "node src/cli.js demo",
+    "demo:json": "node src/cli.js demo --json"
+  }
+}

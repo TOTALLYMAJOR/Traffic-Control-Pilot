@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://totallymajor.github.io/traffic-control-pilot/schemas/telemetry-event.schema.json",
+  "title": "Traffic Control Telemetry Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "eventId",
+    "eventType",
+    "occurredAt",
+    "recordedAt",
+    "sequence",
+    "source",
+    "correlation",
+    "proofBoundary",
+    "payload"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "kind": {
+      "const": "traffic-control/telemetry-event"
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "eventType": {
+      "enum": [
+        "contract.verification_completed",
+        "execution.started",
+        "attempt.started",
+        "files.changed",
+        "impact.assessed",
+        "validation.completed",
+        "evidence.recorded",
+        "governor.decision",
+        "intervention.completed",
+        "integration.completed",
+        "integration.blocked",
+        "receipt.audit_completed",
+        "structural.concern_recorded",
+        "contract.superseded",
+        "outcome.reviewed"
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system", "component", "sourceRecordId"],
+      "properties": {
+        "system": {
+          "enum": [
+            "proofloom",
+            "agentflow",
+            "traffic-control-governor",
+            "decision-intelligence",
+            "repository-authority"
+          ]
+        },
+        "component": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceRecordId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryId", "runId", "handoffId", "contractSha256"],
+      "properties": {
+        "repositoryId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "buildId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "taskId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "handoffId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contractSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "policyVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "analysisRunId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "proofBoundary": {
+      "enum": [
+        "CONTRACT_AND_AUTHORITY",
+        "LOCAL_EXECUTION",
+        "LOCAL_EXECUTION_AND_INTEGRATION",
+        "HOSTED_RUNTIME",
+        "REVIEWED_OUTCOME"
+      ]
+    },
+    "correctionOfEventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correctionReason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "dependentRequired": {
+    "correctionOfEventId": ["correctionReason"],
+    "correctionReason": ["correctionOfEventId"]
+  }
+}
