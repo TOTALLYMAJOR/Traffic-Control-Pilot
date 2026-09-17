@@ -24,13 +24,13 @@ with the live checkout when each handoff is approved.
 
 | Task | Priority | Target repository | State | Unlocks |
 | --- | --- | --- | --- | --- |
-| TCP-001 | P0 | Traffic-Control-Plane | Ready for owner-authorized publication | Stable integration baseline |
-| TCP-002 | P0 | AgentFlow | Ready after TCP-001 | Native observations |
-| TCP-003 | P0 | AgentFlow | Depends on TCP-002 | Live control decisions |
-| TCP-004 | P0 | AgentFlow | Depends on TCP-002 and TCP-003 | Trustworthy product metrics |
-| TCP-005 | P1 | AgentFlow | Depends on TCP-003 and TCP-004 | Operator supervision |
-| TCP-006 | P0 | ProofLoom / Design Intelligence | Depends on TCP-003 | Audited completion loop |
-| TCP-007 | P1 | Design Intelligence | Depends on TCP-003 and TCP-006 | Governed structural escalation |
+| TCP-001 | P0 | Traffic-Control-Plane | Implemented and locally validated; publication pending | Stable integration baseline |
+| TCP-002 | P0 | AgentFlow | Implemented on integration branch; live-pilot proof pending | Native observations |
+| TCP-003 | P0 | AgentFlow | Implemented and wired; live-pilot proof pending | Live control decisions |
+| TCP-004 | P0 | AgentFlow | Projection implemented and tested; live coverage pending | Trustworthy product metrics |
+| TCP-005 | P1 | AgentFlow | Visual target selection required before UI implementation | Operator supervision |
+| TCP-006 | P0 | ProofLoom / Design Intelligence | Implemented and adversarially tested; real receipt pending | Audited completion loop |
+| TCP-007 | P1 | Design Intelligence | Implemented and tested; real supersession pending | Governed structural escalation |
 | TCP-008 | P0 | AgentFlow + consuming repositories | Depends on TCP-004 through TCP-007 | Real acceptance evidence |
 | TCP-009 | P1 | ProofLoom / Design Intelligence | Depends on TCP-006 and TCP-008 | Reviewed outcomes and learning candidates |
 | TCP-010 | P2 | Traffic-Control-Plane | Depends on TCP-008 | Qualified runtime portability |
@@ -536,13 +536,13 @@ TCP-001
 
 | Task | Current status | Required closeout evidence |
 | --- | --- | --- |
-| TCP-001 | Ready; current implementation is local and uncommitted | Exact validated commit and, only when authorized, matching remote SHA |
-| TCP-002 | Not started | Observation fixtures from real AgentFlow records |
-| TCP-003 | Not started | Durable decision and intervention receipts |
-| TCP-004 | Specified only | Schema-valid telemetry and metric coverage report |
-| TCP-005 | Not started | Rendered desktop/mobile operator evidence |
-| TCP-006 | Reference audit exists locally; native round trip not started | ProofLoom audit of real AgentFlow receipt |
-| TCP-007 | Synthetic path only | Reviewed supersession round trip |
+| TCP-001 | Implemented; 48 tests and both demos pass locally; commit pending | Exact validated commit and, only when authorized, matching remote SHA |
+| TCP-002 | Native observation projector implemented and tested on AgentFlow branch | Observation fixtures from a real AgentFlow run |
+| TCP-003 | Decision service, durable records, runtime adapter, and coordinator gates implemented | Durable decisions from a real governed run |
+| TCP-004 | Idempotent schema-bound projection and population-separated metric summary implemented | Persisted pilot telemetry and coverage report |
+| TCP-005 | Not implemented; Product Design visual-selection gate remains open | Selected visual target and rendered desktop/mobile operator evidence |
+| TCP-006 | Exact ProofLoom receipt audit implemented with adversarial tests | ProofLoom audit of a real completed AgentFlow receipt |
+| TCP-007 | Proposal and durable resolution/supersession records implemented | Reviewed real supersession round trip |
 | TCP-008 | Proposed as `EXP-LIVE-001`; not run | Consecutive-run pilot report and raw denominators |
 | TCP-009 | Not started | Reviewed outcome and learning-candidate records |
 | TCP-010 | Intentionally deferred | Second-runtime equivalence evidence |

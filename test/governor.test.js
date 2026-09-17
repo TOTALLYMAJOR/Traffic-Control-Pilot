@@ -10,12 +10,14 @@ import {
 
 function approvedContract(overrides = {}) {
   return bindContract({
-    schemaVersion: "1.0.0",
+    schemaVersion: "2.0.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-001",
     createdAt: "2026-09-16T11:00:00.000Z",
     repository: {
       baseCommit: "a".repeat(40),
+      snapshotSha256: "2".repeat(64),
+      worktreeState: "clean",
       remote: "https://github.com/totallymajor/example.git",
     },
     objective: "Implement a deterministic execution governor",
@@ -23,6 +25,8 @@ function approvedContract(overrides = {}) {
       status: "APPROVED",
       approvedBy: "repository-owner",
       approvedAt: "2026-09-16T12:00:00.000Z",
+      stateSha256: "3".repeat(64),
+      governanceReportSha256: "4".repeat(64),
       sources: [{ path: "docs/intent.md", sha256: "1".repeat(64) }],
     },
     tasks: [
@@ -57,6 +61,11 @@ function observation(contract, overrides = {}) {
       handoffSha256: contract.binding.sha256,
       repositoryId: contract.document.repository.remote,
       baseCommit: contract.document.repository.baseCommit,
+      snapshotSha256: contract.document.repository.snapshotSha256,
+      worktreeState: contract.document.repository.worktreeState,
+      authorityStateSha256: contract.document.authority.stateSha256,
+      governanceReportSha256:
+        contract.document.authority.governanceReportSha256,
       authoritySources: contract.document.authority.sources,
       approvalAuthority: "HUMAN_OR_REPOSITORY",
     },

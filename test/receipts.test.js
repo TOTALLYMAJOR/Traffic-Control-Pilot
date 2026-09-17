@@ -12,12 +12,14 @@ import {
 
 function contract() {
   return bindContract({
-    schemaVersion: "1.0.0",
+    schemaVersion: "2.0.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-receipt",
     createdAt: "2026-09-16T11:00:00.000Z",
     repository: {
       baseCommit: "a".repeat(40),
+      snapshotSha256: "2".repeat(64),
+      worktreeState: "clean",
       remote: "https://github.com/totallymajor/example.git",
     },
     objective: "Issue an auditable AgentFlow build receipt",
@@ -25,6 +27,8 @@ function contract() {
       status: "APPROVED",
       approvedBy: "repository-owner",
       approvedAt: "2026-09-16T12:00:00.000Z",
+      stateSha256: "3".repeat(64),
+      governanceReportSha256: "4".repeat(64),
       sources: [{ path: "docs/intent.md", sha256: "1".repeat(64) }],
     },
     tasks: [
@@ -64,6 +68,11 @@ function receiptInput(boundContract, overrides = {}) {
       handoffSha256: boundContract.binding.sha256,
       repositoryId: boundContract.document.repository.remote,
       baseCommit: boundContract.document.repository.baseCommit,
+      snapshotSha256: boundContract.document.repository.snapshotSha256,
+      worktreeState: boundContract.document.repository.worktreeState,
+      authorityStateSha256: boundContract.document.authority.stateSha256,
+      governanceReportSha256:
+        boundContract.document.authority.governanceReportSha256,
       authoritySources: boundContract.document.authority.sources,
       approvalAuthority: "HUMAN_OR_REPOSITORY",
     },

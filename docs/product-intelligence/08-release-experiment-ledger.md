@@ -39,7 +39,7 @@ rewrite historical exposure or results.
 | Type / status | `RELEASE` / `COMPLETED` locally, not committed or deployed |
 | Effective at | 2026-09-16 local verification |
 | Scope | This repository only; synthetic demo; no live runtime exposure |
-| Versions | Git base `2f79bb2c456dc315fcd72f6f6381aeb029eb5497`; `governor.v1`; handoff and receipt schema `1.0.0` |
+| Versions | Git base `2f79bb2c456dc315fcd72f6f6381aeb029eb5497`; `governor.v1`; handoff schema `2.0.0`; receipt schema `1.0.0` |
 | Hypothesis | Existing ProofLoom and AgentFlow contracts can support a deterministic supervisory Governor without duplicating scheduling, retries, repository graph, or execution storage. |
 | Primary metric | M-03 Deterministic Replay Agreement |
 | Guardrails | G-01 through G-10 |
