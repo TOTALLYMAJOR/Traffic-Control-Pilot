@@ -26,7 +26,7 @@ runtime capabilities.
 The pilot consumes the existing ProofLoom and AgentFlow contract kinds without
 introducing a second execution-intent or build-receipt format:
 
-- `design-intelligence/governed-task-handoff`, schema `1.0.0`
+- `design-intelligence/governed-task-handoff`, schema `2.0.0`
 - `agentflow/build-receipt`, schema `1.0.0`
 
 `bindContract` keeps the handoff document unchanged and derives the same style

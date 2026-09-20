@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { canonicalJson, sha256 } from "./integrity.js";
 
-const SUPPORTED_VERSION = "1.0.0";
+const SUPPORTED_VERSION = "2.0.0";
 const HANDOFF_KIND = "design-intelligence/governed-task-handoff";
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
@@ -41,11 +41,15 @@ function validateShape(document) {
       "Handoff identity and objective are required",
     );
   }
-  if (!COMMIT_PATTERN.test(document.repository?.baseCommit ?? "")) {
-    throw new ContractViolation(
-      "INVALID_REPOSITORY_BINDING",
-      "Repository base commit is required",
-    );
+    if (
+      !COMMIT_PATTERN.test(document.repository?.baseCommit ?? "") ||
+      !DIGEST_PATTERN.test(document.repository?.snapshotSha256 ?? "") ||
+      document.repository?.worktreeState !== "clean"
+    ) {
+      throw new ContractViolation(
+        "INVALID_REPOSITORY_BINDING",
+        "Repository base commit, clean worktree state, and snapshot digest are required",
+      );
   }
   if (!(["PROPOSED", "APPROVED"].includes(document.authority?.status))) {
     throw new ContractViolation(
@@ -53,8 +57,8 @@ function validateShape(document) {
       "Authority status must be PROPOSED or APPROVED",
     );
   }
-  if (
-    document.authority.status === "APPROVED" &&
+    if (
+      document.authority.status === "APPROVED" &&
     (typeof document.authority.approvedBy !== "string" ||
       document.authority.approvedBy.trim().length === 0 ||
       !validTimestamp(document.authority.approvedAt))
@@ -113,6 +117,15 @@ function validateShape(document) {
       throw new ContractViolation(
         "INVALID_TASKS",
         `Task ${task.id ?? "unknown"} is incomplete`,
+      );
+    }
+    if (
+      !DIGEST_PATTERN.test(document.authority?.stateSha256 ?? "") ||
+      !DIGEST_PATTERN.test(document.authority?.governanceReportSha256 ?? "")
+    ) {
+      throw new ContractViolation(
+        "INVALID_APPROVAL",
+        "Authority state and governance report digests are required",
       );
     }
     if (
@@ -210,9 +223,10 @@ export function bindContract(input) {
     binding: {
       algorithm: "sha256",
       id: document.handoffId,
-      sha256: sha256(canonicalJson(document)),
-      baseCommit: document.repository.baseCommit,
-      proofBoundary: document.proof.claimBoundary,
+        sha256: sha256(canonicalJson(document)),
+        baseCommit: document.repository.baseCommit,
+        snapshotSha256: document.repository.snapshotSha256,
+        proofBoundary: document.proof.claimBoundary,
       repositoryId: document.repository.remote ?? null,
     },
   };
@@ -264,12 +278,36 @@ export function verifyContract(contract, observedAuthority) {
       "Observed repository identity differs from approved authority",
     );
   }
-  if (observedAuthority.baseCommit !== document.repository.baseCommit) {
+    if (observedAuthority.baseCommit !== document.repository.baseCommit) {
     throw new ContractViolation(
       "BASE_COMMIT_DRIFT",
       "Observed base commit differs from approved authority",
-    );
-  }
+      );
+    }
+    if (
+      observedAuthority.snapshotSha256 !== document.repository.snapshotSha256 ||
+      observedAuthority.worktreeState !== document.repository.worktreeState
+    ) {
+      throw new ContractViolation(
+        "SNAPSHOT_DRIFT",
+        "Observed repository snapshot differs from approved authority",
+      );
+    }
+    if (observedAuthority.authorityStateSha256 !== document.authority.stateSha256) {
+      throw new ContractViolation(
+        "AUTHORITY_STATE_DRIFT",
+        "Observed critical authority state differs from approved authority",
+      );
+    }
+    if (
+      observedAuthority.governanceReportSha256 !==
+      document.authority.governanceReportSha256
+    ) {
+      throw new ContractViolation(
+        "GOVERNANCE_REPORT_DRIFT",
+        "Observed governance report differs from approved authority",
+      );
+    }
   const observedSources = normalizeSources(observedAuthority.authoritySources);
   if (
     observedSources === null ||

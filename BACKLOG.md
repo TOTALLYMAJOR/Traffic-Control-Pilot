@@ -24,16 +24,16 @@ with the live checkout when each handoff is approved.
 
 | Task | Priority | Target repository | State | Unlocks |
 | --- | --- | --- | --- | --- |
-| TCP-001 | P0 | Traffic-Control-Plane | Ready for owner-authorized publication | Stable integration baseline |
-| TCP-002 | P0 | AgentFlow | Ready after TCP-001 | Native observations |
-| TCP-003 | P0 | AgentFlow | Depends on TCP-002 | Live control decisions |
-| TCP-004 | P0 | AgentFlow | Depends on TCP-002 and TCP-003 | Trustworthy product metrics |
-| TCP-005 | P1 | AgentFlow | Depends on TCP-003 and TCP-004 | Operator supervision |
-| TCP-006 | P0 | ProofLoom / Design Intelligence | Depends on TCP-003 | Audited completion loop |
-| TCP-007 | P1 | Design Intelligence | Depends on TCP-003 and TCP-006 | Governed structural escalation |
-| TCP-008 | P0 | AgentFlow + consuming repositories | Depends on TCP-004 through TCP-007 | Real acceptance evidence |
+| TCP-001 | P0 | Traffic-Control-Plane | Implemented and committed locally; publication pending | Stable integration baseline |
+| TCP-002 | P0 | AgentFlow | Implemented; native observation proven in one bounded real-repository run | Native observations |
+| TCP-003 | P0 | AgentFlow | Implemented; durable `CONTINUE` and `REQUEST_REPAIR` decisions proven locally | Live control decisions |
+| TCP-004 | P0 | AgentFlow | Projection implemented and tested; live coverage pending | Trustworthy product metrics |
+| TCP-005 | P1 | AgentFlow | Implemented with rendered desktop/mobile completed-work evidence; interaction-state acceptance remains | Operator supervision |
+| TCP-006 | P0 | ProofLoom / Design Intelligence | Implemented; real completed receipt audited `PASS` locally | Audited completion loop |
+| TCP-007 | P1 | Design Intelligence | Implemented and tested; real supersession pending | Governed structural escalation |
+| TCP-008 | P0 | AgentFlow + consuming repositories | One bounded technical pilot passed; 30-run multi-repository acceptance remains | Real acceptance evidence |
 | TCP-009 | P1 | ProofLoom / Design Intelligence | Depends on TCP-006 and TCP-008 | Reviewed outcomes and learning candidates |
-| TCP-010 | P2 | Traffic-Control-Plane | Depends on TCP-008 | Qualified runtime portability |
+| TCP-010 | P2 | Traffic-Control-Plane + AgentFlow + ProofLoom / Design Intelligence | Slices A-C stage from TCP-006; second-runtime qualification depends on TCP-008 | Harness Profile-governed runtime portability |
 
 ## TCP-001 - Publish the verified protocol and intelligence baseline
 
@@ -470,41 +470,195 @@ autonomously.
 - A learning candidate names supporting and contradictory evidence, applicable
   policy versions, uncertainty, and the approval required for adoption.
 
-## TCP-010 - Qualify provider-neutral runtime portability
+## TCP-010 - Qualify Harness Profile-aware runtime portability
 
 ```yaml
 epic_id: TCP-PORTABILITY
 epic_title: Runtime-neutral governance protocol
-epic_outcome: A second execution runtime can use the proven protocol without weakening the AgentFlow reference path.
-target_repository: Traffic-Control-Plane
-estimate_hours: 8
+epic_outcome: The deterministic Governor can supervise a runtime governed by an approved Proofloom Harness Profile without taking semantic-control or execution authority.
+target_repository: Traffic-Control-Plane + AgentFlow + ProofLoom-Design-Intelligence
+estimate_hours: 28
 depends_on:
+  - TCP-002
+  - TCP-003
+  - TCP-006
   - TCP-008
-owns:
-  - traffic-control-plane/src/adapters
-  - traffic-control-plane/test/adapters.test.js
-  - traffic-control-plane/docs/runtime-adapter-contract.md
 validate:
   - npm test
   - npm run demo
-consumes:
-  - task: TCP-008
-    artifact: live-pilot-evidence
-    version: 1.0.0
 produces:
-  - name: execution-runtime-adapter-contract
-    type: protocol-contract
+  - name: harness-profile-aware-runtime-contract
+    type: cross-repository-protocol-contract
     version: 1.0.0
     path: docs/runtime-adapter-contract.md
 ```
 
+Extend the existing portability task rather than introducing a second
+portability framework. Proofloom remains authoritative for Harness Profile
+semantics, evidence obligations, and acceptance. AgentFlow remains the
+execution authority and source of runtime enforcement facts. Traffic Control
+normalizes those facts, decides entitlement to continue, applies protective
+interventions through the runtime port, and retains immutable replayable
+decision history.
+
+Do not copy the Harness Profile into a Traffic Control-owned schema. Bind an
+immutable approved profile reference and digest into the governed handoff, then
+evaluate only the small set of profile facts that can change entitlement to
+continue. A profile change requires a newly approved handoff; drift cannot
+self-authorize a replacement.
+
+The four delivery slices below are the dispatchable tasks under TCP-010; the
+epic is an aggregate and is not separately executable.
+
+### Harness Profile signal disposition
+
+| Candidate | Authoritative source | Existing observation | Governor need and decision | Remediation owner | Deterministic and replay requirement |
+| --- | --- | --- | --- | --- | --- |
+| Harness Profile digest mismatch | Proofloom-approved profile reference and digest, compared with the profile digest AgentFlow loaded | No profile field; analogous handoff drift is already authority-checked | **Add.** `PAUSE_FOR_REVIEW` before further execution or integration | Proofloom corrects or supersedes authority; AgentFlow reloads only after approval | Exact digest mismatch always pauses; replay uses the recorded approved and loaded digests |
+| Unsupported profile version | Proofloom profile identity/version plus the runtime-port compatibility declaration | Unsupported Governor and handoff versions fail closed, but profile versions are absent | **Add.** `PAUSE_FOR_REVIEW`; never reinterpret through the latest profile | Proofloom selects a supported profile or the runtime-port owner adds reviewed support | Supported-version matrix is policy-versioned; unknown versions fail closed in live and replay modes |
+| Profile drift | Same approved-versus-loaded digest evidence as digest mismatch | No separate field | **Do not add a second signal.** Treat drift as digest mismatch or approved handoff supersession | Proofloom owns supersession; AgentFlow must not hot-swap profiles | Mid-run digest change pauses; replay preserves both handoff histories without mutating either |
+| Required runtime capability missing | Proofloom's required capability IDs and AgentFlow's authoritative capability attestation | No | **Add only for required capabilities.** `PAUSE_FOR_REVIEW` before dependent work starts | AgentFlow provides the capability; Proofloom may approve a different profile | Missing required capability pauses; optional capability absence has no Governor effect; replay uses captured attestations |
+| Unauthorized write | AgentFlow changed-file records and task ownership in the approved handoff | Yes: `files.changed` -> `impactDelta.unexpectedChangedPaths` | **Reuse.** `BLOCK_INTEGRATION` through `ownership-violation` | AgentFlow repairs/reverts within existing authority; Proofloom approves any ownership change | Existing ownership fixtures remain canonical and replay to the same block |
+| Denied external action | AgentFlow's runtime enforcement result, including action class and denial reason | Can be represented as failure/evidence, but not as a dedicated event | **Do not add as an automatic stop.** A successful denial proves the control held; unresolved work flows through existing repair, retry, no-progress, or pause rules | AgentFlow chooses an allowed execution path; Proofloom changes authority only through approval | Replaying the denial plus resulting failure/evidence must reproduce the existing decision path |
+| Missing required approval | Proofloom profile approval gate plus repository/human approval record resolved by AgentFlow | Handoff approval exists; per-action approval does not | **Add.** `PAUSE_FOR_REVIEW` before the gated action | Human or repository authority through Proofloom | Missing, stale, wrong-scope, or wrong-action approval pauses; exact valid approval permits evaluation to continue in live and replay modes |
+| Network-policy violation | AgentFlow network enforcement record evaluated against the bound profile rule ID | No dedicated signal | **Add.** `PAUSE_FOR_REVIEW`; a denied attempt remains evidence of enforcement, not permission to route around policy | AgentFlow investigates the attempted action; Proofloom owns any policy change | Allowed, denied, missing-policy, and mismatched-rule fixtures are deterministic; replay performs no network action |
+| Required isolation unavailable | Proofloom required isolation capability and AgentFlow capability attestation | No | **Fold into required runtime capability missing.** `PAUSE_FOR_REVIEW` | AgentFlow/runtime operator | Isolation is tested as a required-capability fixture, not a parallel Governor rule |
+| Evidence obligation unmet | Proofloom evidence obligations projected into the approved handoff | Yes: required evidence satisfied/contradictory sets | **Reuse.** `BLOCK_INTEGRATION` at the obligation's approved gate; add gate metadata only when the profile requires a pre-integration gate | AgentFlow produces evidence; Proofloom judges acceptance | Existing missing/contradicted evidence tests remain canonical; replay uses the recorded obligation and evidence snapshots |
+| Execution budget exhausted | Proofloom hard budget definition plus AgentFlow's authoritative monotonic counter | Attempt budget exists; other hard budgets do not | **Add only for deterministic hard ceilings.** `PAUSE_FOR_REVIEW`; do not infer wall-clock, token, or cost usage | AgentFlow supplies counters; Proofloom approves any new budget | Exact boundary-minus-one and boundary fixtures; attempt budget keeps the existing rule; replay uses captured counters only |
+| Trace/correlation discontinuity | AgentFlow event identities, build/task/attempt correlation, and ordered source sequence | Duplicate sequence fails closed; gaps and cross-run correlation breaks are not represented | **Add.** `PAUSE_FOR_REVIEW` because entitlement cannot be established from an incomplete chain | AgentFlow repairs the event projection; Traffic Control owns normalized continuity validation | Gap, duplicate, cross-build, and cross-task fixtures fail closed; replay rejects the same discontinuity without writes |
+
+### TCP-010A - Bind existing Proofloom Harness Profile authority
+
+```yaml
+depends_on:
+  - TCP-006
+target_repository: ProofLoom-Design-Intelligence
+observation_evidence_required:
+  - Approved Harness Profile identity, schema version, semantic version, and canonical digest
+  - Required runtime capabilities, action-approval gates, network/isolation rules, evidence obligations, and deterministic hard budgets
+  - Governed handoff reference binding the exact approved profile
+governor_decision_affected:
+  - PAUSE_FOR_REVIEW when the profile binding is missing, unsupported, or mismatched
+deterministic_acceptance_tests:
+  - Profile mutation, substitution, unsupported version, and stale approval fail closed
+  - A superseding profile produces a new approved handoff identity and digest
+replay_tests:
+  - The approved profile snapshot remains resolvable by identity, version, and digest
+  - Legacy handoffs without a profile replay only under their legacy Governor policy and are never relabeled profile-governed
+claim_boundary: Proves immutable Profile authority binding only; it does not prove runtime enforcement, execution success, or acceptance.
+```
+
+Consume Proofloom's existing Harness Profile authority and semantics. Do not
+create a Traffic Control profile language, approval registry, or acceptance
+authority.
+
+### TCP-010B - Project authoritative Harness runtime facts from AgentFlow
+
+```yaml
+depends_on:
+  - TCP-002
+  - TCP-003
+  - TCP-010A
+target_repository: AgentFlow
+observation_evidence_required:
+  - Loaded profile identity/version/digest
+  - Required-capability attestation from the executing runtime
+  - Scoped action-approval resolution
+  - Network-policy and isolation enforcement outcomes
+  - Monotonic hard-budget counters
+  - Build/task/attempt trace continuity and intervention acknowledgements
+governor_decision_affected:
+  - Supplies facts for CONTINUE, PAUSE_FOR_REVIEW, BLOCK_INTEGRATION, REQUEST_REPAIR, DELEGATE_RETRY, and proposal-only PROPOSE_REPLAN
+deterministic_acceptance_tests:
+  - Missing or malformed authoritative facts produce a protective error, never a synthetic favorable value
+  - Denied actions are recorded without being treated as policy permission or automatic execution failure
+  - AgentFlow remains the sole executor and retry scheduler
+replay_tests:
+  - Captured normalized facts replay without invoking AgentFlow, external actions, or intervention side effects
+claim_boundary: Proves source projection and intervention acknowledgement only; it does not prove Profile semantics, policy correctness, or provider enforcement outside captured evidence.
+```
+
+Reuse TCP-002's observation adapter and TCP-003's control service. Do not add a
+second event store, scheduler, retry engine, capability registry, or execution
+database.
+
+### TCP-010C - Add profile-aware deterministic policy and history
+
+```yaml
+depends_on:
+  - TCP-010A
+  - TCP-010B
+target_repository: Traffic-Control-Plane
+observation_evidence_required:
+  - Normalized adopted signals from the disposition table
+  - Immutable prior decisions and intervention acknowledgements
+  - Explicit progress evidence, phase change, and failure fingerprints
+governor_decision_affected:
+  - CONTINUE
+  - PAUSE_FOR_REVIEW
+  - BLOCK_INTEGRATION
+  - REQUEST_REPAIR
+  - DELEGATE_RETRY
+  - PROPOSE_REPLAN as PROPOSAL_ONLY
+deterministic_acceptance_tests:
+  - Identical handoff, profile binding, observation, history summary, and policy version produce byte-equivalent decisions
+  - Unsupported profiles, missing required capabilities or approvals, network violations, exhausted hard budgets, and trace discontinuity fail closed
+  - Existing ownership, evidence, retry-budget, and repeated-failure rules are reused without duplicate signals
+  - An intervention-loop ceiling pauses after the versioned maximum consecutive applied interventions without positive evidence, phase progress, or resolved failure
+  - A repeated decision/rule cycle with no progress is detected as oscillation and pauses; it cannot authorize replanning or structural change
+replay_tests:
+  - A new Governor policy version preserves governor.v1 unchanged
+  - Replay selects the recorded Governor policy and compatible Profile version; unknown or unavailable combinations fail closed
+  - Historical decisions bind profile identity/version/digest and intervention-history input, and replay produces no writes or runtime calls
+  - Profile supersession replays as a new approved handoff rather than mutation of the prior history
+claim_boundary: Proves deterministic local observation, decision, intervention guardrails, and replay only; it does not prove AgentFlow integration, provider behavior, deployment, or Proofloom acceptance.
+```
+
+Loop ceilings must be policy-versioned counts over immutable records, not
+elapsed time. Existing repeated identical failures without evidence gain may
+still produce `PROPOSE_REPLAN`, but it remains `PROPOSAL_ONLY` and requires
+external approval. Oscillation or ceiling exhaustion produces
+`PAUSE_FOR_REVIEW`; neither condition can select or authorize a new structure.
+
+### TCP-010D - Qualify one additional execution runtime
+
+```yaml
+depends_on:
+  - TCP-008
+  - TCP-010C
+target_repository: Traffic-Control-Plane + separately approved second execution runtime
+observation_evidence_required:
+  - Frozen cross-runtime event and Harness Profile corpus
+  - Runtime capability and enforcement provenance
+  - Equivalent intervention acknowledgements and immutable decision history
+governor_decision_affected:
+  - All decisions supported by the shared runtime port
+deterministic_acceptance_tests:
+  - AgentFlow passes its prior acceptance corpus unchanged
+  - The second runtime produces byte-equivalent decisions for the frozen shared corpus
+  - Unsupported facts, capabilities, profile versions, and actions fail closed
+replay_tests:
+  - AgentFlow and the second runtime replay the same normalized histories to equivalent decisions without side effects
+  - Historical policy/profile compatibility failures are explicit and deterministic
+claim_boundary: Proves protocol equivalence for the frozen qualified corpus only; it does not establish universal runtime portability, production readiness, or customer acceptance.
+```
+
 Use live AgentFlow evidence to identify the smallest stable adapter boundary,
 then qualify one additional runtime against the same observation, decision,
-intervention, replay, and proof invariants. Do not extract shared infrastructure
-before the AgentFlow path demonstrates recurrence and stable semantics.
+intervention, replay, Profile, and proof invariants. Do not extract shared
+infrastructure before the AgentFlow path demonstrates recurrence and stable
+semantics.
 
 ### Acceptance Criteria
 
+- Every adopted profile fact has one authoritative producer, one normalized
+  representation, one deterministic rule, a remediation owner, and replay
+  coverage; candidates marked reuse or fold do not create duplicate signals.
+- Unsupported or unavailable Profile semantics fail closed. No runtime or
+  Governor substitutes a newer Profile interpretation during replay.
+- Intervention-loop and oscillation protection cannot mutate approved intent,
+  select a replacement strategy, or make replanning/reconsideration
+  self-authorizing.
 - The adapter contract contains no AgentFlow-specific state assumption that is
   unnecessary to the Governor decision.
 - AgentFlow remains the fully supported reference runtime and passes its prior
@@ -526,30 +680,47 @@ TCP-001
          -> TCP-005
          -> TCP-006
             -> TCP-007
+            -> TCP-010A
+   TCP-002 + TCP-003 + TCP-010A
+      -> TCP-010B
+         -> TCP-010C
    TCP-004 + TCP-005 + TCP-006 + TCP-007
       -> TCP-008
          -> TCP-009
-         -> TCP-010
+   TCP-008 + TCP-010C
+      -> TCP-010D
 ```
 
 ## Completion evidence
 
+The 2026-09-17 QuoteFlow pilot is recorded in AgentFlow at
+`docs/audits/traffic-control-live-pilot-2026-09-17.md`. Build
+`build_a6141453-d900-46e9-802a-f0550f153819` recorded validation evidence,
+Governor `CONTINUE`, integration commit
+`f95b924fe434553caed2f227116c8f2203274699`, a completed receipt, and a
+Proofloom audit result of `PASS`. Rendered desktop and 390px mobile evidence
+also preserves the decision history after completion. This closes the bounded
+technical proof only; it does not satisfy TCP-008's 30-run, three-repository,
+four-week, supersession, outcome-review, or human-acceptance gates.
+
 | Task | Current status | Required closeout evidence |
 | --- | --- | --- |
-| TCP-001 | Ready; current implementation is local and uncommitted | Exact validated commit and, only when authorized, matching remote SHA |
-| TCP-002 | Not started | Observation fixtures from real AgentFlow records |
-| TCP-003 | Not started | Durable decision and intervention receipts |
-| TCP-004 | Specified only | Schema-valid telemetry and metric coverage report |
-| TCP-005 | Not started | Rendered desktop/mobile operator evidence |
-| TCP-006 | Reference audit exists locally; native round trip not started | ProofLoom audit of real AgentFlow receipt |
-| TCP-007 | Synthetic path only | Reviewed supersession round trip |
-| TCP-008 | Proposed as `EXP-LIVE-001`; not run | Consecutive-run pilot report and raw denominators |
+| TCP-001 | Implemented; 48 tests and both demos pass locally; committed as `77e756c` | Only when authorized, matching remote SHA |
+| TCP-002 | Native observation projector implemented, tested, and exercised by the QuoteFlow pilot | Broader representative-run coverage |
+| TCP-003 | Decision service, durable records, runtime adapter, coordinator gates, active-attempt semantics, and governed recovery implemented | Repeated-failure and structural-decision coverage in the acceptance corpus |
+| TCP-004 | Idempotent schema-bound projection and population-separated metric summary implemented | Persisted pilot telemetry and coverage report |
+| TCP-005 | Existing AgentFlow experience extended; desktop and 390px completed-work decisions rendered | Keyboard, loading, error, stale-data, and human acceptance checks |
+| TCP-006 | Exact ProofLoom receipt audit passed against a real completed AgentFlow receipt | Additional failure-path receipt audits in the acceptance corpus |
+| TCP-007 | Proposal and durable resolution/supersession records implemented | Reviewed real supersession round trip |
+| TCP-008 | One bounded real-repository technical pilot passed; not counted as the 30-run baseline | Frozen eligibility rule, consecutive-run report, raw denominators, three repositories, and four weeks |
 | TCP-009 | Not started | Reviewed outcome and learning-candidate records |
-| TCP-010 | Intentionally deferred | Second-runtime equivalence evidence |
+| TCP-010 | Profile-aware portability decomposed; no Harness Profile integration is implemented by this backlog change | Approved Profile binding, authoritative AgentFlow facts, deterministic profile-aware policy/replay, loop-ceiling proof, and second-runtime equivalence evidence |
 
 ## Explicit exclusions
 
 This backlog does not authorize deployment, production exposure, remote branch
 deletion, autonomous policy self-modification, a new scheduler, a new retry
 engine, a new repository graph, a new execution database, or a universal agent
-framework. Those remain outside scope unless separately justified and approved.
+framework. It also does not authorize Harness Profile mutation, hot-swapping,
+or self-authorizing replan/reconsideration. Those remain outside scope unless
+separately justified and approved.

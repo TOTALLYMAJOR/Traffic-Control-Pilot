@@ -8,19 +8,19 @@ live ProofLoom or AgentFlow runtime.
 
 | ID | Capability | User or system action enabled | Current state | Evidence / next boundary |
 | --- | --- | --- | --- | --- |
-| CAP-01 | Governed intent ingestion | Supply the existing ProofLoom governed handoff without translating it into a competing authority | **Implemented locally** | `bindContract` consumes `design-intelligence/governed-task-handoff@1.0.0` |
+| CAP-01 | Governed intent ingestion | Supply the existing ProofLoom governed handoff without translating it into a competing authority | **Implemented locally** | `bindContract` consumes `design-intelligence/governed-task-handoff@2.0.0` and rejects v1 |
 | CAP-02 | Authority verification | Refuse proposed, mutated, stale, wrong-repository, or wrong-source authority | **Implemented locally** | Contract and Governor refusal tests |
 | CAP-03 | Observation normalization | Convert ordered runtime facts into one provider-neutral execution observation | **Implemented locally** | `reduceExecutionEvents` and event-reduction tests |
 | CAP-04 | Failure identity | Distinguish materially repeated deterministic failure from different or transient failures | **Implemented locally** | Stable failure fingerprint tests |
 | CAP-05 | Evidence progress | Determine whether another attempt learned anything relevant | **Implemented locally** | Evidence delta, including evidence recorded after failure |
 | CAP-06 | Impact control | Detect task ownership violations, broader affected paths, and active-task collisions | **Implemented locally** | Task-attributed ownership and impact-delta tests |
 | CAP-07 | Deterministic governance | Produce one explainable decision from the same contract, observation, and policy version | **Implemented locally** | `governor.v1` determinism test |
-| CAP-08 | Protective intervention contract | Continue, delegate retry, request bounded repair, block integration, pause, reconsider, or propose replan | **Implemented as an interface** | Runtime side effects require a live AgentFlow adapter |
+| CAP-08 | Protective intervention contract | Continue, delegate retry, request bounded repair, block integration, pause, reconsider, or propose replan | **Implemented on the AgentFlow integration branch** | Coordinator gates and acknowledgements are locally tested; live-pilot evidence remains pending |
 | CAP-09 | Immutable decision history | Persist hash-linked decisions and detect mutation or reordering | **Implemented locally** | Decision-history verification tests |
 | CAP-10 | Historical replay | Evaluate recorded histories under an explicit installed policy version without mutation | **Implemented locally** | Replay and mutation-refusal tests |
 | CAP-11 | Receipt creation and audit | Prove the exact governed task set, commits, changed-file ownership, validations, evidence, authority, and decision chain | **Implemented locally** | `agentflow/build-receipt@1.0.0` creation and adversarial audits |
-| CAP-12 | Structural escalation | Route architecture-level failure through proposal-only Decision Intelligence and a superseding approved handoff | **Synthetic demonstration only** | Requires live Decision Intelligence and ProofLoom reconciliation |
-| CAP-13 | Operator inspectability | See source event, signal, rule, decision, intervention, and result | **Partially implemented** | CLI and JSON output exist; durable AgentFlow timeline is pending |
+| CAP-12 | Structural escalation | Route architecture-level failure through proposal-only Decision Intelligence and a superseding approved handoff | **Implemented locally in ProofLoom** | Proposal, approve, reject, revise, cancel, and immutable supersession records are tested; real review remains pending |
+| CAP-13 | Operator inspectability | See source event, signal, rule, decision, intervention, and result | **Backend evidence implemented; UI pending** | Durable AgentFlow events exist; visual selection and rendered operator timeline remain pending |
 | CAP-14 | Outcome audit | Attach later delivery and user outcomes to the exact governed run | **Specified** | Requires ProofLoom outcome-audit integration |
 | CAP-15 | Reviewed learning | Turn reviewed outcomes into candidate policy or design learning without silent self-modification | **Specified** | No autonomous policy update is permitted |
 | CAP-16 | Runtime portability | Use the same decision protocol through other execution adapters | **Conceptual** | Do not extract until the AgentFlow reference path is operational |

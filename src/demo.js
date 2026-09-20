@@ -6,23 +6,38 @@ import { reduceExecutionEvents } from "./observations.js";
 import { auditBuildReceipt, createBuildReceipt } from "./receipts.js";
 
 function handoffInput({ id, objective, approvedAt }) {
+  const baseCommit = "a".repeat(40);
+  const authorityStateSha256 = "3".repeat(64);
+  const governanceReportSha256 = "4".repeat(64);
+  const sources = [
+    { path: "docs/product-intent.md", sha256: "1".repeat(64) },
+  ];
+  const snapshotSha256 = sha256({
+    baseCommit,
+    worktreeState: "clean",
+    authorityStateSha256,
+    governanceReportSha256,
+    sources,
+  });
   return {
-    schemaVersion: "1.0.0",
+    schemaVersion: "2.0.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: id,
     createdAt: "2026-09-16T11:00:00.000Z",
-    repository: {
-      baseCommit: "a".repeat(40),
-      remote: "https://github.com/totallymajor/traffic-control-consumer.git",
+      repository: {
+        baseCommit,
+        snapshotSha256,
+        worktreeState: "clean",
+        remote: "https://github.com/totallymajor/traffic-control-consumer.git",
     },
     objective,
     authority: {
       status: "APPROVED",
-      approvedBy: "repository-owner",
-      approvedAt,
-      sources: [
-        { path: "docs/product-intent.md", sha256: "1".repeat(64) },
-      ],
+        approvedBy: "repository-owner",
+        approvedAt,
+        stateSha256: authorityStateSha256,
+        governanceReportSha256,
+        sources,
     },
     tasks: [
       {
@@ -47,9 +62,14 @@ function authority(contract) {
   return {
     handoffId: contract.binding.id,
     handoffSha256: contract.binding.sha256,
-    repositoryId: contract.document.repository.remote,
-    baseCommit: contract.document.repository.baseCommit,
-    authoritySources: contract.document.authority.sources,
+      repositoryId: contract.document.repository.remote,
+      baseCommit: contract.document.repository.baseCommit,
+      snapshotSha256: contract.document.repository.snapshotSha256,
+      worktreeState: contract.document.repository.worktreeState,
+      authorityStateSha256: contract.document.authority.stateSha256,
+      governanceReportSha256:
+        contract.document.authority.governanceReportSha256,
+      authoritySources: contract.document.authority.sources,
     approvalAuthority: "HUMAN_OR_REPOSITORY",
   };
 }

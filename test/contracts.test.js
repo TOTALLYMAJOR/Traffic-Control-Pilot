@@ -9,12 +9,14 @@ import {
 
 function contractInput(overrides = {}) {
   return {
-    schemaVersion: "1.0.0",
+    schemaVersion: "2.0.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-001",
     createdAt: "2026-09-16T11:00:00.000Z",
     repository: {
       baseCommit: "a".repeat(40),
+      snapshotSha256: "2".repeat(64),
+      worktreeState: "clean",
       remote: "https://github.com/totallymajor/example.git",
     },
     objective: "Add governed execution",
@@ -22,6 +24,8 @@ function contractInput(overrides = {}) {
       status: "APPROVED",
       approvedBy: "repository-owner",
       approvedAt: "2026-09-16T12:00:00.000Z",
+      stateSha256: "3".repeat(64),
+      governanceReportSha256: "4".repeat(64),
       sources: [{ path: "docs/intent.md", sha256: "1".repeat(64) }],
     },
     tasks: [
@@ -50,6 +54,11 @@ function observedAuthority(contract, overrides = {}) {
     handoffSha256: contract.binding.sha256,
     repositoryId: contract.document.repository.remote,
     baseCommit: contract.document.repository.baseCommit,
+    snapshotSha256: contract.document.repository.snapshotSha256,
+    worktreeState: contract.document.repository.worktreeState,
+    authorityStateSha256: contract.document.authority.stateSha256,
+    governanceReportSha256:
+      contract.document.authority.governanceReportSha256,
     authoritySources: contract.document.authority.sources,
     approvalAuthority: "HUMAN_OR_REPOSITORY",
     ...overrides,
@@ -65,6 +74,8 @@ test("bindContract creates a stable canonical digest", () => {
       status: "APPROVED",
       approvedBy: "repository-owner",
       approvedAt: "2026-09-16T12:00:00.000Z",
+      stateSha256: "3".repeat(64),
+      governanceReportSha256: "4".repeat(64),
     },
   });
 
@@ -72,6 +83,18 @@ test("bindContract creates a stable canonical digest", () => {
   assert.match(first.binding.sha256, /^[a-f0-9]{64}$/);
   assert.equal(first.binding.sha256, reordered.binding.sha256);
   assert.equal(first.document.kind, "design-intelligence/governed-task-handoff");
+});
+
+test("bindContract rejects the obsolete v1 handoff schema", () => {
+  const input = contractInput();
+  input.schemaVersion = "1.0.0";
+
+  assert.throws(
+    () => bindContract(input),
+    (error) =>
+      error instanceof ContractViolation &&
+      error.code === "UNSUPPORTED_CONTRACT_SCHEMA",
+  );
 });
 
 test("bindContract accepts schema-valid RFC 3339 timestamps without milliseconds", () => {
@@ -127,6 +150,53 @@ test("verifyContract rejects base revision drift", () => {
       ),
     (error) =>
       error instanceof ContractViolation && error.code === "BASE_COMMIT_DRIFT",
+  );
+});
+
+test("verifyContract rejects governed snapshot drift", () => {
+  const contract = bindContract(contractInput());
+
+  assert.throws(
+    () =>
+      verifyContract(
+        contract,
+        observedAuthority(contract, { snapshotSha256: "5".repeat(64) }),
+      ),
+    (error) =>
+      error instanceof ContractViolation && error.code === "SNAPSHOT_DRIFT",
+  );
+});
+
+test("verifyContract rejects authority state drift", () => {
+  const contract = bindContract(contractInput());
+
+  assert.throws(
+    () =>
+      verifyContract(
+        contract,
+        observedAuthority(contract, {
+          authorityStateSha256: "5".repeat(64),
+        }),
+      ),
+    (error) =>
+      error instanceof ContractViolation && error.code === "AUTHORITY_STATE_DRIFT",
+  );
+});
+
+test("verifyContract rejects governance report drift", () => {
+  const contract = bindContract(contractInput());
+
+  assert.throws(
+    () =>
+      verifyContract(
+        contract,
+        observedAuthority(contract, {
+          governanceReportSha256: "5".repeat(64),
+        }),
+      ),
+    (error) =>
+      error instanceof ContractViolation &&
+      error.code === "GOVERNANCE_REPORT_DRIFT",
   );
 });
 
@@ -213,6 +283,30 @@ test("bindContract rejects malformed approved handoffs", () => {
       code: "INVALID_REPOSITORY_BINDING",
       mutate(input) {
         input.repository.baseCommit = "not-a-commit";
+      },
+    },
+    {
+      code: "INVALID_REPOSITORY_BINDING",
+      mutate(input) {
+        input.repository.snapshotSha256 = "not-a-digest";
+      },
+    },
+    {
+      code: "INVALID_REPOSITORY_BINDING",
+      mutate(input) {
+        input.repository.worktreeState = "dirty";
+      },
+    },
+    {
+      code: "INVALID_APPROVAL",
+      mutate(input) {
+        delete input.authority.stateSha256;
+      },
+    },
+    {
+      code: "INVALID_APPROVAL",
+      mutate(input) {
+        delete input.authority.governanceReportSha256;
       },
     },
     {

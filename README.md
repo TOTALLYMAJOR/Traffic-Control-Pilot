@@ -24,7 +24,7 @@ ProofLoom outcome audit / reviewed learning
 
 ## What is implemented
 
-- Existing ProofLoom `design-intelligence/governed-task-handoff@1.0.0`
+- Existing ProofLoom `design-intelligence/governed-task-handoff@2.0.0`
   ingestion with canonical SHA-256 binding
 - Fail-closed approval, contract, repository, base-commit, and authority-source
   verification
@@ -80,10 +80,14 @@ digest; the original authority remains immutable.
 
 ## Current proof boundary
 
-This repository is a tested protocol reference and synthetic acceptance slice.
-It is not yet installed into the live AgentFlow coordinator, does not mutate the
-ProofLoom repository, and has not completed a real consuming-repository run.
-Those claims remain outside the current proof.
+This repository is the tested protocol reference. A native implementation now
+exists on isolated AgentFlow and ProofLoom integration branches: handoff v2
+ingestion, automatic coordinator decision gates, durable interventions,
+telemetry projection, exact receipt audit, and proposal-only supersession all
+have focused local tests. Those branches are not yet merged, pushed, deployed,
+or exercised against an owner-approved real consuming repository. Production,
+customer, human-acceptance, and outcome claims remain outside the current
+proof.
 
 See [the protocol specification](docs/protocol.md) for rule precedence,
 observation semantics, replay format, and the next AgentFlow integration slice.

@@ -106,7 +106,9 @@ Reject or quarantine events when:
 
 ## Current implementation boundary
 
-The local reference produces normalized observations, decisions, decision
-records, receipts, and JSON demo output. It does **not** yet persist this
-telemetry envelope or operate a metrics pipeline. Consequently, production
+The AgentFlow integration branch now produces this versioned telemetry
+envelope as an idempotent, privacy-bounded projection and computes metrics in
+separate synthetic, local, CI, hosted, production, and reviewed-outcome
+populations. It does **not** yet persist a pilot analytics stream or establish
+live denominators. Consequently, hosted, production, and reviewed product
 metric values remain unknown.
