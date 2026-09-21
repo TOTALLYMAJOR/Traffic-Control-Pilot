@@ -479,18 +479,10 @@ epic_outcome: The deterministic Governor can supervise a runtime governed by an 
 target_repository: Traffic-Control-Plane + AgentFlow + ProofLoom-Design-Intelligence
 estimate_hours: 28
 depends_on:
-  - TCP-002
-  - TCP-003
   - TCP-006
-  - TCP-008
 validate:
   - npm test
   - npm run demo
-produces:
-  - name: harness-profile-aware-runtime-contract
-    type: cross-repository-protocol-contract
-    version: 1.0.0
-    path: docs/runtime-adapter-contract.md
 ```
 
 Extend the existing portability task rather than introducing a second
@@ -510,6 +502,14 @@ self-authorize a replacement.
 The four delivery slices below are the dispatchable tasks under TCP-010; the
 epic is an aggregate and is not separately executable.
 
+TCP-010A through TCP-010C are gated by a ratified Proofloom Harness Profile
+contract, not by TCP-008. TCP-010D alone depends on TCP-008. The current
+`traffic-control/execution-observation@1` and
+`traffic-control/governor-decision-record@1` contracts must be extended in
+place; do not publish the proposed `1.1.0` targets until canonical JSON, digest
+rules, required fields, compatibility fixtures, and unsupported-version
+refusal behavior are frozen and accepted by their owning repositories.
+
 ### Harness Profile signal disposition
 
 | Candidate | Authoritative source | Existing observation | Governor need and decision | Remediation owner | Deterministic and replay requirement |
@@ -528,6 +528,10 @@ epic is an aggregate and is not separately executable.
 | Trace/correlation discontinuity | AgentFlow event identities, build/task/attempt correlation, and ordered source sequence | Duplicate sequence fails closed; gaps and cross-run correlation breaks are not represented | **Add.** `PAUSE_FOR_REVIEW` because entitlement cannot be established from an incomplete chain | AgentFlow repairs the event projection; Traffic Control owns normalized continuity validation | Gap, duplicate, cross-build, and cross-task fixtures fail closed; replay rejects the same discontinuity without writes |
 
 ### TCP-010A - Bind existing Proofloom Harness Profile authority
+
+External gate: `TASK-PROOFLOOM-HARNESS-PROFILE-SCHEMA` must publish an
+accepted, digest-bound Harness Profile contract and compatibility fixtures.
+Until then this slice remains planning-ready but implementation-blocked.
 
 ```yaml
 depends_on:
