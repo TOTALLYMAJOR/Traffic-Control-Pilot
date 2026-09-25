@@ -21,6 +21,10 @@ It does not schedule work, manage worktrees, execute retries, own repository
 graphs, or authorize architecture. AgentFlow remains responsible for those
 runtime capabilities.
 
+Participation is conditional. AgentFlow runs outside the pilot use AgentFlow's
+native gates. The pilot never acts as a mandatory downstream stage after
+AgentFlow execution.
+
 ## Existing contracts
 
 The pilot consumes the existing ProofLoom and AgentFlow contract kinds without
@@ -123,6 +127,81 @@ Governor does not calculate backoff or maintain a second retry schedule.
 `REQUEST_RECONSIDER` and `PROPOSE_REPLAN` are always `PROPOSAL_ONLY` and require
 external approval. The intervention adapter refuses malformed structural
 decisions that attempt to authorize their own change.
+
+## Draft policy `governor.v2` — not implemented
+
+This section specifies a proposed six-action pilot contract. It does not rename,
+extend, or loosen `governor.v1`, its proposal-only `PROPOSE_REPLAN`, its replay
+records, or existing receipt verification. The [draft JSON Schema](governor-v2-draft.schema.json)
+describes the decision envelope shape, not proof that a live adapter enforces it.
+
+### Admission and scope binding
+
+AgentFlow explicitly admits a run only when its approved handoff and current
+repository authority verify; the policy version and live adapter are supported;
+and trusted run, attempt, changed-path, validation, impact, and relevant
+external-effect observations are available. The decision binds the handoff ID
+and digest, AgentFlow run ID, repository and base revision, approved scope
+digest, policy version, and trusted observation digest. `scope_preserved` and
+`scope_violation` are computed from AgentFlow and repository evidence, not an
+agent's declaration. A schema-valid claim is not proof of that computation.
+
+The approved scope comprises objectives, governed task IDs, dependency edges,
+repository identity and owned surfaces, required validation and proof, limits,
+and any explicitly authorized provider effects. The current handoff v2 does
+not establish a complete provider-effect allowlist or monitoring. Until those
+are approval-bound and trusted, the pilot must treat provider mutation as
+outside its authorized scope.
+
+An ineligible run never calls the pilot. A run admitted to the pilot pauses if
+the Governor, adapter, policy, binding, or required observation fails; it may
+not silently downgrade to an ungoverned run.
+
+### Actions and authority effect
+
+| Action | Permitted change | Required preservation |
+| --- | --- | --- |
+| `CONTINUE` | Let the same run proceed | Exact approval, task, scope, policy, and evidence obligations |
+| `COMPACT` | Reduce or restructure agent context | Authority and scope bindings, run state, evidence pointers, and receipts; no evidence deletion |
+| `REPLAN` | Change steps or order within the approved task DAG | Objective, governed task IDs and edges, owned surfaces, proof and validation requirements |
+| `SPLIT` | Ask AgentFlow to divide work into subordinate execution units under an approved parent | Parent task identity and authorization; no new governed task, backlog adoption, or expanded combined write scope |
+| `RESTART` | Ask AgentFlow recovery to begin a bounded new attempt | Same approved run and task, retained prior evidence, attempt limits, and safe external-effect handling |
+| `ESCALATE` | Pause and present reason plus proposed scope delta | No further mutation or integration until human or repository authority resolves the issue |
+
+Traffic Control returns a decision. AgentFlow validates it against its native
+immutable plan and state and alone performs any permissible operation. `SPLIT`
+units are execution detail, not new task IDs or dependencies. `RESTART` cannot
+repeat a non-idempotent provider effect without separate trusted proof that the
+effect is safe. `COMPACT` cannot erase the approval envelope, evidence, or
+failure history needed to replay or audit a decision.
+
+### Deterministic trigger precedence
+
+For an admitted run, evaluate in this order using a fixed policy version and
+canonical, trusted inputs:
+
+1. Missing, stale, ambiguous, or changed authority, scope, policy, adapter, or
+   required observation; any `scope_violation`; or an unclassified external
+   effect -> `ESCALATE` and pause.
+2. Continuation that needs a new objective, governed task, dependency,
+   repository surface, provider mutation, weaker proof obligation, or changed
+   approval -> `ESCALATE`. A proposal for a new binding may be recorded, never
+   applied to the current run.
+3. Exhausted attempt or repair limits, unsafe restart, repeated intervention
+   oscillation, or inability to preserve evidence -> `ESCALATE`.
+4. A recoverable failed attempt with a safe AgentFlow recovery path -> `RESTART`.
+5. An oversized authorized task that AgentFlow can divide without creating a
+   governed task or ownership expansion -> `SPLIT`.
+6. A revised within-scope sequence that respects the approved dependency DAG
+   and proof obligations -> `REPLAN`.
+7. Context pressure with a lossless authority/evidence carry-forward ->
+   `COMPACT`.
+8. Otherwise -> `CONTINUE`.
+
+No rule may turn `Task A` into `Task A + unapproved Task B`. Scope expansion is
+always an authority transition, never an execution-topology intervention.
+The above ordering is a draft policy to test and ratify; the current evaluator
+continues to run `governor.v1` only.
 
 ## Persistence and replay
 
