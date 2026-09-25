@@ -1,26 +1,35 @@
 # Traffic Control Pilot
 
-Traffic Control Pilot is a deterministic governance protocol for autonomous
-engineering execution. It answers one control question:
+Traffic Control Pilot is a deterministic, provider-neutral reference governor
+for continuation during **eligible AgentFlow runs**. It answers one control
+question:
 
 > Given the current authority, evidence, failure history, impact, and progress,
 > is this runtime still entitled to continue with its approved strategy?
 
-The pilot sits between governed intent and an execution runtime. It does not
-replace ProofLoom, AgentFlow, or Decision Intelligence.
+The pilot is optional and operates inside an already-approved AgentFlow run.
+It does not replace ProofLoom, human or repository authority, AgentFlow, or
+Decision Intelligence. AgentFlow runs that are not eligible do not enter the
+pilot.
 
 ```text
-ProofLoom approved handoff
-          |
-          v
-AgentFlow execution evidence --> Governor --> deterministic decision
-          |                         |
-          v                         v
-AgentFlow build receipt      intervention or proposal
-          |
-          v
-ProofLoom outcome audit / reviewed learning
+ProofLoom recommendation -> human/repository approval -> AgentFlow run
+                                                    |
+                                           eligible and opted in?
+                                            /              \
+                                           no              yes
+                                           |                |
+                                   native AgentFlow    Governor decision
+                                        gates           -> same AgentFlow run
+                                            \              /
+                                             execution evidence
+                                                    |
+                                             ProofLoom audit
 ```
+
+AgentFlow's native authorization, ownership, validation, and integration gates
+apply in both branches. The pilot adds an in-run decision for eligible runs; it
+never replaces those gates.
 
 ## What is implemented
 
@@ -73,6 +82,13 @@ dispatch, retry timing, validation, integration, runtime state, repository
 impact data, and build receipts. The Governor evaluates whether execution may
 progress and returns an intervention; it does not perform the work itself.
 
+Traffic Control may recommend continuation or execution-topology changes inside
+the approved run. It does not adopt backlog items, authorize tasks, expand
+repository or provider scope, approve a ProofLoom recommendation, or accept
+implementation. AgentFlow validates and applies any intervention. If safe
+continuation needs new scope, the pilot escalates and AgentFlow stops bounded
+execution for the governing authority's decision.
+
 ProofLoom remains the governed-intent and outcome-audit authority. Decision
 Intelligence may propose structural alternatives but cannot approve them. Any
 material change requires a newly approved handoff with a new identity and
@@ -91,6 +107,9 @@ proof.
 
 See [the protocol specification](docs/protocol.md) for rule precedence,
 observation semantics, replay format, and the next AgentFlow integration slice.
+The proposed six-action `governor.v2` contract is documented there and in its
+[draft schema](docs/governor-v2-draft.schema.json); it is not implemented by the
+current `governor.v1` evaluator.
 
 See the [product intelligence system](docs/product-intelligence/README.md) for
 the outcome contract, capability map, success metrics, telemetry schema,
