@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:traffic-control:governor-v2-draft",
+  "$comment": "DRAFT documentation contract only. Shape validation does not authenticate approval, scope, observations, or runtime enforcement.",
+  "title": "Draft governor.v2 decision envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["policyVersion", "eligibility", "approvedRunScope", "scopeEvidence", "decision"],
+  "properties": {
+    "policyVersion": {"const": "governor.v2"},
+    "eligibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "adapterId", "evidenceSha256"],
+      "properties": {
+        "status": {"const": "ELIGIBLE"},
+        "adapterId": {"type": "string", "minLength": 1},
+        "evidenceSha256": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "approvedRunScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoffId", "handoffSha256", "runId", "repositoryId", "baseCommit", "scopeSha256"],
+      "properties": {
+        "handoffId": {"type": "string", "minLength": 1},
+        "handoffSha256": {"$ref": "#/$defs/digest"},
+        "runId": {"type": "string", "minLength": 1},
+        "repositoryId": {"type": "string", "minLength": 1},
+        "baseCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "scopeSha256": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "scopeEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "observationSha256", "scope_preserved", "scope_violation"],
+      "properties": {
+        "source": {"const": "AGENTFLOW_TRUSTED_OBSERVATION"},
+        "observationSha256": {"$ref": "#/$defs/digest"},
+        "scope_preserved": {"type": "boolean"},
+        "scope_violation": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["OBJECTIVE", "GOVERNED_TASK", "DEPENDENCY", "REPOSITORY_SURFACE", "PROVIDER_EFFECT", "PROOF_OBLIGATION", "APPROVAL", "UNKNOWN"]
+          }
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "reasonCode"],
+      "properties": {
+        "action": {"enum": ["CONTINUE", "COMPACT", "REPLAN", "SPLIT", "RESTART", "ESCALATE"]},
+        "reasonCode": {"type": "string", "minLength": 1},
+        "proposedScopeDelta": {"type": "string"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"scopeEvidence": {"properties": {"scope_preserved": {"const": true}}}}},
+      "then": {"properties": {"scopeEvidence": {"properties": {"scope_violation": {"maxItems": 0}}}}}
+    },
+    {
+      "if": {"properties": {"scopeEvidence": {"properties": {"scope_preserved": {"const": false}}}}},
+      "then": {"properties": {"scopeEvidence": {"properties": {"scope_violation": {"minItems": 1}}}, "decision": {"properties": {"action": {"const": "ESCALATE"}}}}}
+    },
+    {
+      "if": {"properties": {"scopeEvidence": {"properties": {"scope_violation": {"minItems": 1}}}}},
+      "then": {"properties": {"decision": {"properties": {"action": {"const": "ESCALATE"}}}}}
+    }
+  ],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
