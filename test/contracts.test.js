@@ -12,6 +12,7 @@ function contractInput(overrides = {}) {
     schemaVersion: "2.0.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-001",
+    programId: "program_01measurementsuccess",
     createdAt: "2026-09-16T11:00:00.000Z",
     repository: {
       baseCommit: "a".repeat(40),
@@ -80,6 +81,7 @@ test("bindContract creates a stable canonical digest", () => {
   });
 
   assert.equal(first.binding.algorithm, "sha256");
+  assert.equal(first.binding.programId, "program_01measurementsuccess");
   assert.match(first.binding.sha256, /^[a-f0-9]{64}$/);
   assert.equal(first.binding.sha256, reordered.binding.sha256);
   assert.equal(first.document.kind, "design-intelligence/governed-task-handoff");
@@ -94,6 +96,14 @@ test("bindContract rejects the obsolete v1 handoff schema", () => {
     (error) =>
       error instanceof ContractViolation &&
       error.code === "UNSUPPORTED_CONTRACT_SCHEMA",
+  );
+});
+
+test("bindContract rejects malformed program correlation", () => {
+  assert.throws(
+    () => bindContract(contractInput({ programId: "program with spaces" })),
+    (error) =>
+      error instanceof ContractViolation && error.code === "INVALID_PROGRAM_ID",
   );
 });
 

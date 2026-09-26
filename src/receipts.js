@@ -211,6 +211,9 @@ export function createBuildReceipt(input) {
   const document = {
     schemaVersion: "1.0.0",
     kind: "agentflow/build-receipt",
+    ...(contract.document.programId === undefined
+      ? {}
+      : { programId: contract.document.programId }),
     handoff: {
       id: contract.binding.id,
       sha256: contract.binding.sha256,
@@ -266,7 +269,8 @@ export function auditBuildReceipt(receipt, contract) {
   }
   if (
     document.handoff.id !== contract.binding.id ||
-    document.handoff.sha256 !== contract.binding.sha256
+    document.handoff.sha256 !== contract.binding.sha256 ||
+    document.programId !== contract.document.programId
   ) {
     throw new ReceiptViolation(
       "RECEIPT_CONTRACT_MISMATCH",
@@ -299,6 +303,7 @@ export function auditBuildReceipt(receipt, contract) {
   assertEvidence(contract, document.evidence);
   return {
     valid: true,
+    ...(document.programId === undefined ? {} : { programId: document.programId }),
     receiptHash: receipt.binding.sha256,
     proofBoundary: document.proofBoundary,
   };

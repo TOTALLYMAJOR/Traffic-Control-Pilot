@@ -7,6 +7,7 @@ const HANDOFF_KIND = "design-intelligence/governed-task-handoff";
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 const TASK_ID_PATTERN = /^[A-Z0-9][A-Z0-9._-]*$/;
+const PROGRAM_ID_PATTERN = /^program_[a-z0-9][a-z0-9._-]{7,127}$/;
 const RFC3339_PATTERN =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
@@ -39,6 +40,15 @@ function validateShape(document) {
     throw new ContractViolation(
       "INVALID_CONTRACT_IDENTITY",
       "Handoff identity and objective are required",
+    );
+  }
+  if (
+    document.programId !== undefined &&
+    !PROGRAM_ID_PATTERN.test(document.programId)
+  ) {
+    throw new ContractViolation(
+      "INVALID_PROGRAM_ID",
+      "programId must be a lowercase opaque program_ identifier",
     );
   }
     if (
@@ -223,6 +233,7 @@ export function bindContract(input) {
     binding: {
       algorithm: "sha256",
       id: document.handoffId,
+      ...(document.programId === undefined ? {} : { programId: document.programId }),
         sha256: sha256(canonicalJson(document)),
         baseCommit: document.repository.baseCommit,
         snapshotSha256: document.repository.snapshotSha256,

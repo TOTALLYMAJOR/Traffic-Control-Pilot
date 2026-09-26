@@ -19,6 +19,7 @@ export function resolveGovernorPolicy(version) {
 
 function decision(policy, action, ruleId, options = {}) {
   return {
+    ...(options.programId === undefined ? {} : { programId: options.programId }),
     policyVersion: policy.version,
     action,
     ruleId,
@@ -29,19 +30,25 @@ function decision(policy, action, ruleId, options = {}) {
 }
 
 export function evaluateGovernor({ contract, observation, policy }) {
+  const decide = (action, ruleId, options = {}) => decision(
+    policy,
+    action,
+    ruleId,
+    { ...options, programId: contract.document.programId },
+  );
   try {
     verifyContract(contract, observation.authority ?? {});
   } catch (error) {
     if (!(error instanceof ContractViolation)) {
       throw error;
     }
-    return decision(policy, "PAUSE_FOR_REVIEW", "authority-drift", {
+    return decide("PAUSE_FOR_REVIEW", "authority-drift", {
       signals: { violationCode: error.code },
     });
   }
 
   if (observation.impactDelta.unexpectedChangedPaths.length > 0) {
-    return decision(policy, "BLOCK_INTEGRATION", "ownership-violation", {
+    return decide("BLOCK_INTEGRATION", "ownership-violation", {
       signals: {
         unauthorizedPaths: observation.impactDelta.unexpectedChangedPaths,
       },
@@ -49,7 +56,7 @@ export function evaluateGovernor({ contract, observation, policy }) {
   }
 
   if (observation.structuralConcern) {
-    return decision(policy, "REQUEST_RECONSIDER", "structural-concern", {
+    return decide("REQUEST_RECONSIDER", "structural-concern", {
       authorityEffect: "PROPOSAL_ONLY",
       requiresApproval: true,
       signals: { concern: observation.structuralConcern },
@@ -66,8 +73,7 @@ export function evaluateGovernor({ contract, observation, policy }) {
     ["INTEGRATING", "INTEGRATED"].includes(observation.phase) &&
     contradictedEvidence.length > 0
   ) {
-    return decision(
-      policy,
+    return decide(
       "BLOCK_INTEGRATION",
       "required-evidence-contradicted",
       { signals: { contradictedEvidence } },
@@ -77,8 +83,7 @@ export function evaluateGovernor({ contract, observation, policy }) {
     ["INTEGRATING", "INTEGRATED"].includes(observation.phase) &&
     missingEvidence.length > 0
   ) {
-    return decision(
-      policy,
+    return decide(
       "BLOCK_INTEGRATION",
       "required-evidence-missing",
       { signals: { missingEvidence } },
@@ -89,7 +94,7 @@ export function evaluateGovernor({ contract, observation, policy }) {
     observation.impactDelta.unexpectedImpactedPaths.length > 0 ||
     observation.impactDelta.activeTaskCollisions.length > 0
   ) {
-    return decision(policy, "PAUSE_FOR_REVIEW", "impact-expansion", {
+    return decide("PAUSE_FOR_REVIEW", "impact-expansion", {
       signals: {
         unexpectedImpactedPaths:
           observation.impactDelta.unexpectedImpactedPaths,
@@ -103,8 +108,7 @@ export function evaluateGovernor({ contract, observation, policy }) {
     observation.failureRepeatCount >= policy.repeatedFailureThreshold &&
     observation.evidenceDelta.score <= 0
   ) {
-    return decision(
-      policy,
+    return decide(
       "PROPOSE_REPLAN",
       "repeated-no-progress-failure",
       {
@@ -123,7 +127,7 @@ export function evaluateGovernor({ contract, observation, policy }) {
     observation.failure?.retryable === true &&
     observation.attempt < observation.maxAttempts
   ) {
-    return decision(policy, "DELEGATE_RETRY", "runtime-retry-eligible", {
+    return decide("DELEGATE_RETRY", "runtime-retry-eligible", {
       signals: {
         attemptsRemaining: observation.maxAttempts - observation.attempt,
       },
@@ -134,7 +138,7 @@ export function evaluateGovernor({ contract, observation, policy }) {
     observation.failure?.retryable === true &&
     observation.attempt >= observation.maxAttempts
   ) {
-    return decision(policy, "PAUSE_FOR_REVIEW", "retry-budget-exhausted", {
+    return decide("PAUSE_FOR_REVIEW", "retry-budget-exhausted", {
       signals: {
         attempt: observation.attempt,
         maxAttempts: observation.maxAttempts,
@@ -144,13 +148,13 @@ export function evaluateGovernor({ contract, observation, policy }) {
   }
 
   if (observation.failure?.classification === "deterministic") {
-    return decision(policy, "REQUEST_REPAIR", "bounded-implementation-failure", {
+    return decide("REQUEST_REPAIR", "bounded-implementation-failure", {
       signals: { failureFingerprint: observation.failure.fingerprint },
     });
   }
 
   if (observation.failure) {
-    return decision(policy, "PAUSE_FOR_REVIEW", "unclassified-failure", {
+    return decide("PAUSE_FOR_REVIEW", "unclassified-failure", {
       signals: {
         classification: observation.failure.classification ?? null,
         failureFingerprint: observation.failure.fingerprint ?? null,
@@ -158,5 +162,5 @@ export function evaluateGovernor({ contract, observation, policy }) {
     });
   }
 
-  return decision(policy, "CONTINUE", "entitled-to-continue");
+  return decide("CONTINUE", "entitled-to-continue");
 }

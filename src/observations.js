@@ -94,6 +94,7 @@ export function reduceExecutionEvents(events, { contract }) {
   }
   const state = {
     schema: "traffic-control/execution-observation@1",
+    programId: contract.document.programId ?? null,
     buildId: null,
     phase: "PENDING",
     attempt: 0,

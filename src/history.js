@@ -14,6 +14,7 @@ export function createDecisionRecord({
 }) {
   const record = {
     schema: "traffic-control/governor-decision-record@1",
+    ...(decision.programId === undefined ? {} : { programId: decision.programId }),
     recordedAt,
     contractHash,
     observationHash,

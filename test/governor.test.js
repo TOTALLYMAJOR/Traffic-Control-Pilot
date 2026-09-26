@@ -13,6 +13,7 @@ function approvedContract(overrides = {}) {
     schemaVersion: "2.0.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-001",
+    programId: "program_01measurementsuccess",
     createdAt: "2026-09-16T11:00:00.000Z",
     repository: {
       baseCommit: "a".repeat(40),
@@ -109,6 +110,10 @@ test("the same state, contract, and policy produce the same decision", () => {
   assert.deepEqual(
     evaluateGovernor({ contract, observation: input, policy: GOVERNOR_POLICY_V1 }),
     evaluateGovernor({ contract, observation: input, policy: GOVERNOR_POLICY_V1 }),
+  );
+  assert.equal(
+    evaluateGovernor({ contract, observation: input, policy: GOVERNOR_POLICY_V1 }).programId,
+    contract.document.programId,
   );
 });
 
