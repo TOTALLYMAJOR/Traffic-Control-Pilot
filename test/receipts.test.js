@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { bindContract } from "../src/contracts.js";
+import { approveHandoff } from "./handoff-fixture.js";
 import { createDecisionRecord } from "../src/history.js";
 import { sha256 } from "../src/integrity.js";
 import {
@@ -11,8 +12,8 @@ import {
 } from "../src/receipts.js";
 
 function contract() {
-  return bindContract({
-    schemaVersion: "2.0.0",
+  return bindContract(approveHandoff({
+    schemaVersion: "2.1.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-receipt",
     createdAt: "2026-09-16T11:00:00.000Z",
@@ -47,7 +48,7 @@ function contract() {
       requiredEvidence: ["unit-tests"],
       claimBoundary: "LOCAL_EXECUTION_AND_INTEGRATION",
     },
-  });
+  }));
 }
 
 function receiptInput(boundContract, overrides = {}) {
@@ -150,8 +151,10 @@ test("receipt audit rejects mutation and contract substitution", () => {
   );
 
   const otherContract = bindContract({
-    ...structuredClone(contract().document),
-    handoffId: "handoff-other",
+    ...approveHandoff({
+      ...structuredClone(contract().document),
+      handoffId: "handoff-other",
+    }),
   });
   const intactReceipt = createBuildReceipt(receiptInput(boundContract));
   assert.throws(
@@ -169,7 +172,7 @@ test("receipt audit rejects an approved contract mutated after receipt issuance"
   assert.throws(
     () => auditBuildReceipt(receipt, boundContract),
     (error) =>
-      error instanceof ReceiptViolation && error.code === "CONTRACT_HASH_DRIFT",
+      error instanceof ReceiptViolation && error.code === "EXECUTION_APPROVAL_DRIFT",
   );
 });
 
@@ -296,7 +299,7 @@ test("multi-task receipts allow distinct valid task integration commits", () => 
     acceptanceCriteria: ["Second task is represented in the receipt"],
     validate: ["node --test"],
   });
-  const boundContract = bindContract(document);
+  const boundContract = bindContract(approveHandoff(document));
   const input = receiptInput(boundContract);
   input.tasks.push({
     id: "RECEIPT-002",

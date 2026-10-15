@@ -6,10 +6,12 @@ import {
   bindContract,
   verifyContract,
 } from "../src/contracts.js";
+import { canonicalJson, sha256 } from "../src/integrity.js";
+import { approveHandoff } from "./handoff-fixture.js";
 
 function contractInput(overrides = {}) {
-  return {
-    schemaVersion: "2.0.0",
+  const proposed = {
+    schemaVersion: "2.1.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-001",
     programId: "program_01measurementsuccess",
@@ -22,9 +24,7 @@ function contractInput(overrides = {}) {
     },
     objective: "Add governed execution",
     authority: {
-      status: "APPROVED",
-      approvedBy: "repository-owner",
-      approvedAt: "2026-09-16T12:00:00.000Z",
+      status: "PROPOSED",
       stateSha256: "3".repeat(64),
       governanceReportSha256: "4".repeat(64),
       sources: [{ path: "docs/intent.md", sha256: "1".repeat(64) }],
@@ -45,8 +45,11 @@ function contractInput(overrides = {}) {
       requiredEvidence: ["unit-tests", "integration-tests"],
       claimBoundary: "LOCAL_EXECUTION_AND_INTEGRATION",
     },
-    ...overrides,
   };
+  return approveHandoff({
+    ...proposed,
+    ...overrides,
+  });
 }
 
 function observedAuthority(contract, overrides = {}) {
@@ -67,14 +70,16 @@ function observedAuthority(contract, overrides = {}) {
 }
 
 test("bindContract creates a stable canonical digest", () => {
-  const first = bindContract(contractInput());
+  const input = contractInput();
+  const first = bindContract(input);
   const reordered = bindContract({
-    ...contractInput(),
+    ...input,
     authority: {
       sources: [{ sha256: "1".repeat(64), path: "docs/intent.md" }],
-      status: "APPROVED",
-      approvedBy: "repository-owner",
-      approvedAt: "2026-09-16T12:00:00.000Z",
+      approvalReceipt: input.authority.approvalReceipt,
+      status: input.authority.status,
+      approvedBy: input.authority.approvedBy,
+      approvedAt: input.authority.approvedAt,
       stateSha256: "3".repeat(64),
       governanceReportSha256: "4".repeat(64),
     },
@@ -108,9 +113,7 @@ test("bindContract rejects malformed program correlation", () => {
 });
 
 test("bindContract accepts schema-valid RFC 3339 timestamps without milliseconds", () => {
-  const input = contractInput();
-  input.createdAt = "2026-09-16T11:00:00Z";
-  input.authority.approvedAt = "2026-09-16T12:00:00Z";
+  const input = contractInput({ createdAt: "2026-09-16T11:00:00Z" });
 
   assert.equal(bindContract(input).document.createdAt, "2026-09-16T11:00:00Z");
 });
@@ -129,12 +132,10 @@ test("verifyContract rejects a proposed handoff", () => {
   input.authority.status = "PROPOSED";
   delete input.authority.approvedBy;
   delete input.authority.approvedAt;
-  const contract = bindContract(input);
-
   assert.throws(
-    () => verifyContract(contract, observedAuthority(contract)),
+    () => bindContract(input),
     (error) =>
-      error instanceof ContractViolation && error.code === "CONTRACT_NOT_APPROVED",
+      error instanceof ContractViolation && error.code === "INVALID_APPROVAL",
   );
 });
 
@@ -145,7 +146,7 @@ test("verifyContract rejects contents changed after approval", () => {
   assert.throws(
     () => verifyContract(contract, observedAuthority(contract)),
     (error) =>
-      error instanceof ContractViolation && error.code === "CONTRACT_HASH_DRIFT",
+      error instanceof ContractViolation && error.code === "EXECUTION_APPROVAL_DRIFT",
   );
 });
 
@@ -243,9 +244,7 @@ test("verifyContract classifies malformed observed authority sources as drift", 
 });
 
 test("verifyContract rejects advisory output masquerading as approval", () => {
-  const input = contractInput();
-  input.authority.approvedBy = "decision-intelligence";
-  const contract = bindContract(input);
+  const contract = bindContract(contractInput());
 
   assert.throws(
     () =>
@@ -256,6 +255,38 @@ test("verifyContract rejects advisory output masquerading as approval", () => {
     (error) =>
       error instanceof ContractViolation &&
       error.code === "INVALID_APPROVAL_AUTHORITY",
+  );
+});
+
+test("bindContract rejects a missing execution approval receipt", () => {
+  const input = contractInput();
+  delete input.authority.approvalReceipt;
+  assert.throws(
+    () => bindContract(input),
+    (error) => error instanceof ContractViolation && error.code === "INVALID_EXECUTION_APPROVAL",
+  );
+});
+
+test("bindContract rejects a changed execution approval receipt", () => {
+  const input = contractInput();
+  input.authority.approvalReceipt.receiptId = `HAR-${"A".repeat(20)}`;
+  assert.throws(
+    () => bindContract(input),
+    (error) => error instanceof ContractViolation && error.code === "EXECUTION_APPROVAL_DRIFT",
+  );
+});
+
+test("bindContract rejects an expired execution approval receipt", () => {
+  const proposed = contractInput();
+  const receipt = proposed.authority.approvalReceipt;
+  receipt.validUntil = "2020-01-01T00:00:00Z";
+  const receiptWithoutId = Object.fromEntries(
+    Object.entries(receipt).filter(([key]) => key !== "receiptId"),
+  );
+  receipt.receiptId = `HAR-${sha256(canonicalJson(receiptWithoutId)).slice(0, 20).toUpperCase()}`;
+  assert.throws(
+    () => bindContract(proposed),
+    (error) => error instanceof ContractViolation && error.code === "EXECUTION_APPROVAL_EXPIRED",
   );
 });
 

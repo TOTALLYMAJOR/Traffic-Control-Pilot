@@ -8,7 +8,7 @@ live ProofLoom or AgentFlow runtime.
 
 | ID | Capability | User or system action enabled | Current state | Evidence / next boundary |
 | --- | --- | --- | --- | --- |
-| CAP-01 | Governed intent ingestion | Supply the existing ProofLoom governed handoff without translating it into a competing authority | **Implemented locally** | `bindContract` consumes `design-intelligence/governed-task-handoff@2.0.0` and rejects v1 |
+| CAP-01 | Governed intent ingestion | Supply the existing ProofLoom governed handoff without translating it into a competing authority | **Implemented locally** | `bindContract` consumes `design-intelligence/governed-task-handoff@2.1.0` with its bound human approval receipt and rejects older versions |
 | CAP-02 | Authority verification | Refuse proposed, mutated, stale, wrong-repository, or wrong-source authority | **Implemented locally** | Contract and Governor refusal tests |
 | CAP-03 | Observation normalization | Convert ordered runtime facts into one provider-neutral execution observation | **Implemented locally** | `reduceExecutionEvents` and event-reduction tests |
 | CAP-04 | Failure identity | Distinguish materially repeated deterministic failure from different or transient failures | **Implemented locally** | Stable failure fingerprint tests |

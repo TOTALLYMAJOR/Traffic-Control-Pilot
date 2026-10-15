@@ -33,8 +33,8 @@ never replaces those gates.
 
 ## What is implemented
 
-- Existing ProofLoom `design-intelligence/governed-task-handoff@2.0.0`
-  ingestion with canonical SHA-256 binding
+- ProofLoom `design-intelligence/governed-task-handoff@2.1.0` ingestion with
+  canonical SHA-256 binding and a current human execution-approval receipt
 - Fail-closed approval, contract, repository, base-commit, and authority-source
   verification
 - Ordered execution-event reduction into a normalized observation
@@ -96,11 +96,13 @@ digest; the original authority remains immutable.
 
 ## Current proof boundary
 
-This repository is the tested protocol reference. A native implementation now
-exists on isolated AgentFlow and ProofLoom integration branches: handoff v2
+This repository is the tested protocol reference. The local reconciliation
+checkout now consumes the same handoff `2.1.0` contract as the isolated
+AgentFlow and ProofLoom integration branches: human approval receipt validation,
+handoff v2
 ingestion, automatic coordinator decision gates, durable interventions,
 telemetry projection, exact receipt audit, and proposal-only supersession all
-have focused local tests. Those branches are not yet merged, pushed, deployed,
+have focused local tests. These changes are not yet merged, pushed, deployed,
 or exercised against an owner-approved real consuming repository. Production,
 customer, human-acceptance, and outcome claims remain outside the current
 proof.

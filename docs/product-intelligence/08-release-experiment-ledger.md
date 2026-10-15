@@ -46,6 +46,17 @@ rewrite historical exposure or results.
 | Comparison | Test corpus and exact synthetic replay |
 | Decision rule | Accept local reference only if all tests, demo, receipt audit, and diff checks pass and adversarial review has no blocking findings. |
 | Result | 44/44 tests passed; demo produced `PROPOSE_REPLAN -> REQUEST_RECONSIDER -> CONTINUE`; receipt audit valid; replay matched. |
+
+### REL-2026-10-15-001: Handoff 2.1 reconciliation
+
+| Field | Value |
+| --- | --- |
+| Type / status | `RECONCILIATION` / `VALIDATED` locally, not merged, pushed, or deployed |
+| Effective at | 2026-10-15 local verification |
+| Scope | This isolated checkout only; no live runtime exposure |
+| Versions | `governor.v1`; handoff schema `2.1.0`; receipt schema `1.0.0` |
+| Boundary repaired | Traffic Control rejects older handoff versions and requires the same canonical human execution-approval receipt that AgentFlow validates. |
+| Retained rejection proof | Missing, changed, and expired execution approvals are rejected; the full 53-test native suite passes locally. |
 | Evidence | `npm test`, `npm run demo`, `npm run demo:json`, `git diff --check`; current working tree |
 | Authority | Implementation requested by repository owner; no deployment authorization inferred |
 | Proof boundary | Local protocol and synthetic execution only |

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { bindContract } from "../src/contracts.js";
+import { approveHandoff } from "./handoff-fixture.js";
 import {
   GOVERNOR_POLICY_V1,
   evaluateGovernor,
@@ -9,8 +10,8 @@ import {
 } from "../src/governor.js";
 
 function approvedContract(overrides = {}) {
-  return bindContract({
-    schemaVersion: "2.0.0",
+  return bindContract(approveHandoff({
+    schemaVersion: "2.1.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-001",
     programId: "program_01measurementsuccess",
@@ -47,7 +48,7 @@ function approvedContract(overrides = {}) {
       claimBoundary: "LOCAL_EXECUTION_AND_INTEGRATION",
     },
     ...overrides,
-  });
+  }));
 }
 
 function observation(contract, overrides = {}) {

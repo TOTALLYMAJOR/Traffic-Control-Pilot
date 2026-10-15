@@ -30,7 +30,7 @@ AgentFlow execution.
 The pilot consumes the existing ProofLoom and AgentFlow contract kinds without
 introducing a second execution-intent or build-receipt format:
 
-- `design-intelligence/governed-task-handoff`, schema `2.0.0`
+- `design-intelligence/governed-task-handoff`, schema `2.1.0`
 - `agentflow/build-receipt`, schema `1.0.0`
 
 `bindContract` keeps the handoff document unchanged and derives the same style
@@ -38,6 +38,11 @@ of canonical SHA-256 binding AgentFlow already uses. `createBuildReceipt`
 produces the existing receipt document shape and places Governor provenance in
 the receipt's allowed `evidence.events` collection. The returned binding is an
 external digest envelope, not part of the receipt document.
+
+Handoff `2.1.0` requires a canonical, currently valid human execution-approval
+receipt bound to the proposed handoff scope, exact base revision, authority
+sources, task ownership paths, and `execute-governed-handoff` action. Handoff
+`2.0.0` is rejected rather than treated as an approved execution contract.
 
 ## Authority
 

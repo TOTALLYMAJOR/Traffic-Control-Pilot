@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { canonicalJson, sha256 } from "./integrity.js";
 
-const SUPPORTED_VERSION = "2.0.0";
+const SUPPORTED_VERSION = "2.1.0";
 const HANDOFF_KIND = "design-intelligence/governed-task-handoff";
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
@@ -61,10 +61,10 @@ function validateShape(document) {
         "Repository base commit, clean worktree state, and snapshot digest are required",
       );
   }
-  if (!(["PROPOSED", "APPROVED"].includes(document.authority?.status))) {
+  if (document.authority?.status !== "APPROVED") {
     throw new ContractViolation(
       "INVALID_APPROVAL",
-      "Authority status must be PROPOSED or APPROVED",
+      "Authority status must be APPROVED",
     );
   }
     if (
@@ -170,6 +170,129 @@ function validateShape(document) {
       "Proof requirements must be an array",
     );
   }
+  validateExecutionApproval(document);
+}
+
+function validateExecutionApproval(document) {
+  const receipt = document.authority?.approvalReceipt;
+  if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) {
+    throw new ContractViolation(
+      "INVALID_EXECUTION_APPROVAL",
+      "Approved handoffs require a human execution approval receipt",
+    );
+  }
+  const constants = {
+    schemaVersion: 1,
+    kind: "proofloom/execution-approval-receipt",
+    receiptType: "EXECUTION_APPROVAL",
+    policyVersion: "human-authority/v1",
+    decision: "APPROVED",
+    mutationPerformed: false,
+  };
+  if (Object.entries(constants).some(([key, value]) => receipt[key] !== value)) {
+    throw new ContractViolation(
+      "INVALID_EXECUTION_APPROVAL",
+      "Execution approval receipt policy fields are invalid",
+    );
+  }
+  const receiptWithoutId = Object.fromEntries(
+    Object.entries(receipt).filter(([key]) => key !== "receiptId"),
+  );
+  const expectedReceiptId = `HAR-${sha256(canonicalJson(receiptWithoutId)).slice(0, 20).toUpperCase()}`;
+  if (receipt.receiptId !== expectedReceiptId) {
+    throw new ContractViolation(
+      "EXECUTION_APPROVAL_DRIFT",
+      "Execution approval receipt id does not match its canonical content",
+    );
+  }
+  const proposed = structuredClone(document);
+  proposed.authority.status = "PROPOSED";
+  delete proposed.authority.approvedBy;
+  delete proposed.authority.approvedAt;
+  delete proposed.authority.approvalReceipt;
+  const expectedArtifact = {
+    kind: "design-intelligence/governed-task-handoff-scope",
+    id: document.handoffId,
+    sha256: sha256(canonicalJson(proposed)),
+  };
+  if (canonicalJson(receipt.artifact) !== canonicalJson(expectedArtifact)) {
+    throw new ContractViolation(
+      "EXECUTION_APPROVAL_DRIFT",
+      "Execution approval receipt does not bind the governed handoff scope",
+    );
+  }
+  if (
+    receipt.repositoryRevision !== document.repository.baseCommit ||
+    receipt.authority?.actorId !== document.authority.approvedBy ||
+    receipt.issuedAt !== document.authority.approvedAt
+  ) {
+    throw new ContractViolation(
+      "EXECUTION_APPROVAL_DRIFT",
+      "Execution approval authority does not match the governed handoff",
+    );
+  }
+  if (
+    typeof receipt.authority?.actorId !== "string" ||
+    !receipt.authority.actorId.startsWith("human:") ||
+    !["repository-owner", "execution-owner", "named-delegate"].includes(receipt.authority?.role)
+  ) {
+    throw new ContractViolation(
+      "INVALID_EXECUTION_APPROVAL",
+      "Execution approval must come from an allowed human authority",
+    );
+  }
+  if (
+    canonicalJson(receipt.governingSources) !== canonicalJson(document.authority.sources) ||
+    receipt.scope?.repository !== "." ||
+    !validStringList(receipt.scope?.paths) ||
+    !validStringList(receipt.scope?.actions) ||
+    !validStringList(receipt.constraints?.allowedActions)
+  ) {
+    throw new ContractViolation(
+      "EXECUTION_APPROVAL_DRIFT",
+      "Execution approval scope or governing sources do not match the handoff",
+    );
+  }
+  if (
+    !receipt.scope.actions.includes("execute-governed-handoff") ||
+    !receipt.constraints.allowedActions.includes("execute-governed-handoff")
+  ) {
+    throw new ContractViolation(
+      "INVALID_EXECUTION_APPROVAL",
+      "Execution approval does not authorize governed handoff execution",
+    );
+  }
+  if (
+    receipt.scope.paths.some((scopedPath) => !validOwnershipRoot(scopedPath.replace(/\*$/, ""))) ||
+    document.tasks.some((task) => task.owns.some(
+      (ownedPath) => !receipt.scope.paths.some((scopedPath) => scopeCoversPath(scopedPath, ownedPath)),
+    ))
+  ) {
+    throw new ContractViolation(
+      "EXECUTION_APPROVAL_SCOPE_DRIFT",
+      "Execution approval scope does not cover governed task ownership",
+    );
+  }
+  const issuedAt = Date.parse(receipt.issuedAt);
+  const validUntil = Date.parse(receipt.validUntil);
+  if (
+    !validTimestamp(receipt.issuedAt) ||
+    !validTimestamp(receipt.validUntil) ||
+    validUntil <= issuedAt ||
+    Date.now() < issuedAt ||
+    Date.now() > validUntil
+  ) {
+    throw new ContractViolation(
+      "EXECUTION_APPROVAL_EXPIRED",
+      "Execution approval receipt is not currently valid",
+    );
+  }
+}
+
+function scopeCoversPath(scope, owned) {
+  const normalizedScope = scope.replace(/\*$/, "").replace(/\/+$/, "");
+  const normalizedOwned = owned.replace(/\/+$/, "");
+  return normalizedOwned === normalizedScope || normalizedOwned.startsWith(`${normalizedScope}/`);
 }
 
 function validTimestamp(value) {

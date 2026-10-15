@@ -10,7 +10,7 @@ test("the demonstration stops blind retry, escalates structure, and audits a sup
     result.stages.map((stage) => stage.decision.action),
     ["PROPOSE_REPLAN", "REQUEST_RECONSIDER", "CONTINUE"],
   );
-  assert.equal(result.contracts[0].document.schemaVersion, "2.0.0");
+  assert.equal(result.contracts[0].document.schemaVersion, "2.1.0");
   assert.equal(result.contracts[0].document.repository.worktreeState, "clean");
   assert.match(
     result.contracts[0].document.repository.snapshotSha256,

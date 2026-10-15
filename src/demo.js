@@ -5,7 +5,7 @@ import { sha256 } from "./integrity.js";
 import { reduceExecutionEvents } from "./observations.js";
 import { auditBuildReceipt, createBuildReceipt } from "./receipts.js";
 
-function handoffInput({ id, objective, approvedAt }) {
+function handoffInput({ id, objective }) {
   const baseCommit = "a".repeat(40);
   const authorityStateSha256 = "3".repeat(64);
   const governanceReportSha256 = "4".repeat(64);
@@ -19,8 +19,8 @@ function handoffInput({ id, objective, approvedAt }) {
     governanceReportSha256,
     sources,
   });
-  return {
-    schemaVersion: "2.0.0",
+  const proposed = {
+    schemaVersion: "2.1.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: id,
     createdAt: "2026-09-16T11:00:00.000Z",
@@ -32,9 +32,7 @@ function handoffInput({ id, objective, approvedAt }) {
     },
     objective,
     authority: {
-      status: "APPROVED",
-        approvedBy: "repository-owner",
-        approvedAt,
+      status: "PROPOSED",
         stateSha256: authorityStateSha256,
         governanceReportSha256,
         sources,
@@ -54,6 +52,59 @@ function handoffInput({ id, objective, approvedAt }) {
     proof: {
       requiredEvidence: ["unit-tests", "rendered-checkout"],
       claimBoundary: "LOCAL_EXECUTION_AND_INTEGRATION",
+    },
+  };
+  const issuedAt = new Date(Date.now() - 60_000).toISOString();
+  const validUntil = new Date(Date.now() + 60 * 60_000).toISOString();
+  const receiptWithoutId = {
+    schemaVersion: 1,
+    kind: "proofloom/execution-approval-receipt",
+    receiptType: "EXECUTION_APPROVAL",
+    policyVersion: "human-authority/v1",
+    decision: "APPROVED",
+    sessionId: "traffic-control-demo",
+    authority: {
+      actorId: "human:repository-owner",
+      role: "repository-owner",
+      basis: "bounded local demonstration",
+    },
+    repositoryRevision: baseCommit,
+    artifact: {
+      kind: "design-intelligence/governed-task-handoff-scope",
+      id,
+      sha256: sha256(proposed),
+    },
+    scope: {
+      repository: ".",
+      paths: ["src/checkout", "test/checkout.test.js"],
+      actions: ["execute-governed-handoff"],
+    },
+    governingSources: sources,
+    issuedAt,
+    validUntil,
+    supersedes: null,
+    transition: { handoffId: id },
+    constraints: {
+      allowedActions: ["execute-governed-handoff"],
+      requiredEvidence: proposed.proof.requiredEvidence,
+      escalationConditions: ["authority drift"],
+      resourceCeilings: { wallClockMinutes: 60 },
+      iterationCeiling: 3,
+      revocationAuthorityRoles: ["repository-owner"],
+    },
+    mutationPerformed: false,
+  };
+  return {
+    ...proposed,
+    authority: {
+      ...proposed.authority,
+      status: "APPROVED",
+      approvedBy: "human:repository-owner",
+      approvedAt: issuedAt,
+      approvalReceipt: {
+        ...receiptWithoutId,
+        receiptId: `HAR-${sha256(receiptWithoutId).slice(0, 20).toUpperCase()}`,
+      },
     },
   };
 }

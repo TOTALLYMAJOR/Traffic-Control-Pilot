@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { bindContract } from "../src/contracts.js";
+import { approveHandoff } from "./handoff-fixture.js";
 import { GOVERNOR_POLICY_V1 } from "../src/governor.js";
 import {
   applyIntervention,
@@ -16,8 +17,8 @@ import {
 } from "../src/history.js";
 
 function contract() {
-  return bindContract({
-    schemaVersion: "2.0.0",
+  return bindContract(approveHandoff({
+    schemaVersion: "2.1.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-history",
     createdAt: "2026-09-16T11:00:00.000Z",
@@ -52,7 +53,7 @@ function contract() {
       requiredEvidence: ["unit-tests"],
       claimBoundary: "LOCAL_EXECUTION_AND_INTEGRATION",
     },
-  });
+  }));
 }
 
 function events(boundContract) {
