@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { canonicalJson, sha256 } from "./integrity.js";
 
-const SUPPORTED_VERSION = "2.0.0";
+const SUPPORTED_VERSION = "2.1.0";
 const HANDOFF_KIND = "design-intelligence/governed-task-handoff";
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
@@ -61,11 +61,15 @@ function validateShape(document) {
       document.authority.status === "APPROVED" &&
     (typeof document.authority.approvedBy !== "string" ||
       document.authority.approvedBy.trim().length === 0 ||
-      !validTimestamp(document.authority.approvedAt))
+      !validTimestamp(document.authority.approvedAt) ||
+      document.authority.approvalReceipt?.kind !==
+        "proofloom/execution-approval-receipt" ||
+      typeof document.authority.approvalReceipt?.receiptId !== "string" ||
+      !document.authority.approvalReceipt.receiptId.startsWith("HAR-"))
   ) {
     throw new ContractViolation(
       "INVALID_APPROVAL",
-      "Approved handoffs require an approver and approval timestamp",
+      "Approved handoffs require an approver, timestamp, and Proofloom execution approval receipt",
     );
   }
   if (!Array.isArray(document.authority?.sources) || document.authority.sources.length === 0) {

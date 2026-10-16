@@ -12,7 +12,7 @@ import {
 
 function contract() {
   return bindContract({
-    schemaVersion: "2.0.0",
+    schemaVersion: "2.1.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-receipt",
     createdAt: "2026-09-16T11:00:00.000Z",
@@ -27,6 +27,10 @@ function contract() {
       status: "APPROVED",
       approvedBy: "repository-owner",
       approvedAt: "2026-09-16T12:00:00.000Z",
+      approvalReceipt: {
+        kind: "proofloom/execution-approval-receipt",
+        receiptId: `HAR-${"A".repeat(20)}`,
+      },
       stateSha256: "3".repeat(64),
       governanceReportSha256: "4".repeat(64),
       sources: [{ path: "docs/intent.md", sha256: "1".repeat(64) }],
@@ -80,6 +84,7 @@ function receiptInput(boundContract, overrides = {}) {
       id: "build-001",
       status: "completed",
       baseCommit: "a".repeat(40),
+      governedBaseCommit: "a".repeat(40),
       integrationCommit: "c".repeat(40),
     },
     tasks: [
@@ -89,7 +94,7 @@ function receiptInput(boundContract, overrides = {}) {
         resultCommit: "b".repeat(40),
         integrationCommit: "c".repeat(40),
         changedFiles: ["src/receipts.js"],
-        validation: [{ command: "npm test", status: "passed" }],
+        validation: [{ command: "npm test", status: "passed", exitCode: 0 }],
       },
     ],
     evidence: {
@@ -121,6 +126,46 @@ test("an integrated build produces a hash-bound local proof receipt", () => {
     proofBoundary: "LOCAL_EXECUTION_AND_INTEGRATION",
   });
   assert.match(auditBuildReceipt(receipt, boundContract).receiptHash, /^[a-f0-9]{64}$/);
+});
+
+test("audits the strict AgentFlow 1.1 Governor receipt projection", () => {
+  const boundContract = contract();
+  const input = receiptInput(boundContract);
+  const decisionRecord = input.governor.decisionRecords[0];
+  const document = {
+    schemaVersion: "1.1.0",
+    kind: "agentflow/build-receipt",
+    programId: "program_01controlledcontinuity",
+    handoff: { id: boundContract.binding.id, sha256: boundContract.binding.sha256 },
+    build: structuredClone(input.build),
+    tasks: structuredClone(input.tasks),
+    evidence: {
+      events: [
+        { type: "evidence.recorded", payload: { satisfied: ["unit-tests"] } },
+        {
+          type: "governor.decision",
+          payload: {
+            record: structuredClone(decisionRecord),
+            authorityObservation: structuredClone(input.authority),
+          },
+        },
+      ],
+      artifacts: structuredClone(input.evidence.artifacts),
+      approvals: [],
+    },
+    proofBoundary: boundContract.document.proof.claimBoundary,
+    generatedAt: input.issuedAt,
+  };
+  const receipt = {
+    document,
+    binding: { algorithm: "sha256", sha256: sha256(document) },
+  };
+
+  assert.deepEqual(auditBuildReceipt(receipt, boundContract), {
+    valid: true,
+    receiptHash: receipt.binding.sha256,
+    proofBoundary: "LOCAL_EXECUTION_AND_INTEGRATION",
+  });
 });
 
 test("receipt creation refuses missing required evidence", () => {
@@ -249,7 +294,7 @@ test("receipt creation reconciles build, tasks, and hashed proof to the handoff"
         tasks: [
           {
             ...receiptInput(boundContract).tasks[0],
-            validation: [{ command: "npm test", status: "failed" }],
+            validation: [{ command: "npm test", status: "failed", exitCode: 1 }],
           },
         ],
       },
@@ -272,7 +317,7 @@ test("receipt audit rejects recomputed but invalid Governor provenance", () => {
   const event = receipt.document.evidence.events.find(
     (candidate) => candidate.type === "governor.decision",
   );
-  event.decisionRecordHashes = [];
+  event.payload.record.recordHash = "0".repeat(64);
 
   receipt.binding.sha256 = sha256(receipt.document);
 
@@ -304,7 +349,7 @@ test("multi-task receipts allow distinct valid task integration commits", () => 
     resultCommit: "d".repeat(40),
     integrationCommit: "e".repeat(40),
     changedFiles: ["lib/audit.js"],
-    validation: [{ command: "node --test", status: "passed" }],
+    validation: [{ command: "node --test", status: "passed", exitCode: 0 }],
   });
 
   const receipt = createBuildReceipt(input);

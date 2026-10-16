@@ -8,7 +8,7 @@ live ProofLoom or AgentFlow runtime.
 
 | ID | Capability | User or system action enabled | Current state | Evidence / next boundary |
 | --- | --- | --- | --- | --- |
-| CAP-01 | Governed intent ingestion | Supply the existing ProofLoom governed handoff without translating it into a competing authority | **Implemented locally** | `bindContract` consumes `design-intelligence/governed-task-handoff@2.0.0` and rejects v1 |
+| CAP-01 | Governed intent ingestion | Supply the existing ProofLoom governed handoff without translating it into a competing authority | **Implemented locally** | `bindContract` consumes `design-intelligence/governed-task-handoff@2.1.0` with an execution-approval receipt and rejects v1 and v2.0 |
 | CAP-02 | Authority verification | Refuse proposed, mutated, stale, wrong-repository, or wrong-source authority | **Implemented locally** | Contract and Governor refusal tests |
 | CAP-03 | Observation normalization | Convert ordered runtime facts into one provider-neutral execution observation | **Implemented locally** | `reduceExecutionEvents` and event-reduction tests |
 | CAP-04 | Failure identity | Distinguish materially repeated deterministic failure from different or transient failures | **Implemented locally** | Stable failure fingerprint tests |
@@ -18,7 +18,7 @@ live ProofLoom or AgentFlow runtime.
 | CAP-08 | Protective intervention contract | Continue, delegate retry, request bounded repair, block integration, pause, reconsider, or propose replan | **Implemented on the AgentFlow integration branch** | Coordinator gates and acknowledgements are locally tested; live-pilot evidence remains pending |
 | CAP-09 | Immutable decision history | Persist hash-linked decisions and detect mutation or reordering | **Implemented locally** | Decision-history verification tests |
 | CAP-10 | Historical replay | Evaluate recorded histories under an explicit installed policy version without mutation | **Implemented locally** | Replay and mutation-refusal tests |
-| CAP-11 | Receipt creation and audit | Prove the exact governed task set, commits, changed-file ownership, validations, evidence, authority, and decision chain | **Implemented locally** | `agentflow/build-receipt@1.0.0` creation and adversarial audits |
+| CAP-11 | Receipt creation and audit | Prove the exact governed task set, commits, changed-file ownership, validations, evidence, authority, and decision chain | **Implemented locally** | `agentflow/build-receipt@1.1.0` creation, strict AgentFlow projection audit, and adversarial audits |
 | CAP-12 | Structural escalation | Route architecture-level failure through proposal-only Decision Intelligence and a superseding approved handoff | **Implemented locally in ProofLoom** | Proposal, approve, reject, revise, cancel, and immutable supersession records are tested; real review remains pending |
 | CAP-13 | Operator inspectability | See source event, signal, rule, decision, intervention, and result | **Backend evidence implemented; UI pending** | Durable AgentFlow events exist; visual selection and rendered operator timeline remain pending |
 | CAP-14 | Outcome audit | Attach later delivery and user outcomes to the exact governed run | **Specified** | Requires ProofLoom outcome-audit integration |

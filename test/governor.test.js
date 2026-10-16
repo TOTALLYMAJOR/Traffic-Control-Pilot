@@ -10,7 +10,7 @@ import {
 
 function approvedContract(overrides = {}) {
   return bindContract({
-    schemaVersion: "2.0.0",
+    schemaVersion: "2.1.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-001",
     createdAt: "2026-09-16T11:00:00.000Z",
@@ -25,6 +25,10 @@ function approvedContract(overrides = {}) {
       status: "APPROVED",
       approvedBy: "repository-owner",
       approvedAt: "2026-09-16T12:00:00.000Z",
+      approvalReceipt: {
+        kind: "proofloom/execution-approval-receipt",
+        receiptId: `HAR-${"A".repeat(20)}`,
+      },
       stateSha256: "3".repeat(64),
       governanceReportSha256: "4".repeat(64),
       sources: [{ path: "docs/intent.md", sha256: "1".repeat(64) }],

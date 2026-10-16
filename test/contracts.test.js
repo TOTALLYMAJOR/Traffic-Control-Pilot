@@ -9,7 +9,7 @@ import {
 
 function contractInput(overrides = {}) {
   return {
-    schemaVersion: "2.0.0",
+    schemaVersion: "2.1.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: "handoff-001",
     createdAt: "2026-09-16T11:00:00.000Z",
@@ -24,6 +24,10 @@ function contractInput(overrides = {}) {
       status: "APPROVED",
       approvedBy: "repository-owner",
       approvedAt: "2026-09-16T12:00:00.000Z",
+      approvalReceipt: {
+        kind: "proofloom/execution-approval-receipt",
+        receiptId: `HAR-${"A".repeat(20)}`,
+      },
       stateSha256: "3".repeat(64),
       governanceReportSha256: "4".repeat(64),
       sources: [{ path: "docs/intent.md", sha256: "1".repeat(64) }],
@@ -74,6 +78,10 @@ test("bindContract creates a stable canonical digest", () => {
       status: "APPROVED",
       approvedBy: "repository-owner",
       approvedAt: "2026-09-16T12:00:00.000Z",
+      approvalReceipt: {
+        kind: "proofloom/execution-approval-receipt",
+        receiptId: `HAR-${"A".repeat(20)}`,
+      },
       stateSha256: "3".repeat(64),
       governanceReportSha256: "4".repeat(64),
     },
@@ -88,6 +96,18 @@ test("bindContract creates a stable canonical digest", () => {
 test("bindContract rejects the obsolete v1 handoff schema", () => {
   const input = contractInput();
   input.schemaVersion = "1.0.0";
+
+  assert.throws(
+    () => bindContract(input),
+    (error) =>
+      error instanceof ContractViolation &&
+      error.code === "UNSUPPORTED_CONTRACT_SCHEMA",
+  );
+});
+
+test("bindContract rejects the superseded v2.0 handoff schema", () => {
+  const input = contractInput();
+  input.schemaVersion = "2.0.0";
 
   assert.throws(
     () => bindContract(input),
