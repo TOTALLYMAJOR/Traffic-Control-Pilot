@@ -33,7 +33,7 @@ never replaces those gates.
 
 ## What is implemented
 
-- Existing ProofLoom `design-intelligence/governed-task-handoff@2.0.0`
+- Existing ProofLoom `design-intelligence/governed-task-handoff@2.1.0`
   ingestion with canonical SHA-256 binding
 - Fail-closed approval, contract, repository, base-commit, and authority-source
   verification
@@ -45,7 +45,7 @@ never replaces those gates.
   proposal-only replan, and structural reconsideration decisions
 - Verifiable hash-chained Governor decision records
 - Mutation-free historical replay by explicit policy version
-- Existing AgentFlow `agentflow/build-receipt@1.0.0` output with exact task,
+- Existing AgentFlow `agentflow/build-receipt@1.1.0` output with exact task,
   commit, evidence, and Governor-provenance reconciliation
 - An inspectable scenario covering repeated no-progress failure, structural
   escalation, human-approved replacement handoff, successful execution, receipt

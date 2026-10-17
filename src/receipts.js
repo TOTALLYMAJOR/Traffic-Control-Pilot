@@ -24,9 +24,11 @@ function evidenceIds(evidence) {
         : [],
     ),
     ...(Array.isArray(evidence?.events) ? evidence.events : []).flatMap((event) =>
-      typeof event.evidenceId === "string" && DIGEST_PATTERN.test(event.sha256 ?? "")
-        ? [event.evidenceId]
-        : [],
+      event?.type === "evidence.recorded" && Array.isArray(event.payload?.satisfied)
+        ? event.payload.satisfied.filter((item) => typeof item === "string")
+        : typeof event.evidenceId === "string" && DIGEST_PATTERN.test(event.sha256 ?? "")
+          ? [event.evidenceId]
+          : [],
     ),
   ]);
 }
@@ -129,13 +131,18 @@ function taskExecutionIsValid(task, governedTask) {
         !pathAllowed(changedPath, governedTask.owns),
     ) ||
     !Array.isArray(task.validation) ||
-    task.validation.some((result) => result?.status !== "passed")
+    task.validation.some(
+      (result) => result?.status !== "passed" || result.exitCode !== 0,
+    )
   ) {
     return false;
   }
   return governedTask.validate.every((command) =>
     task.validation.some(
-      (result) => result.command === command && result.status === "passed",
+      (result) =>
+        result.command === command &&
+        result.status === "passed" &&
+        result.exitCode === 0,
     ),
   );
 }
@@ -147,7 +154,11 @@ function assertExecutionMatchesContract({ build, tasks, issuedAt }, contract) {
       "Only a completed build can produce a build receipt",
     );
   }
-  if (build.baseCommit !== contract.document.repository.baseCommit) {
+  if (
+    build.baseCommit !== contract.document.repository.baseCommit ||
+    (build.governedBaseCommit !== undefined &&
+      build.governedBaseCommit !== contract.document.repository.baseCommit)
+  ) {
     throw new ReceiptViolation(
       "BUILD_BASE_COMMIT_MISMATCH",
       "Build base commit differs from the governed handoff",
@@ -208,28 +219,48 @@ export function createBuildReceipt(input) {
   assertGovernorProvenance(input.governor, contract);
   assertEvidence(contract, input.evidence);
 
+  const normalizedEvidenceEvents = (input.evidence.events ?? [])
+    .filter(
+      (event) =>
+        typeof event?.type === "string" &&
+        event.payload !== null &&
+        typeof event.payload === "object",
+    )
+    .map((event) => ({
+      type: event.type,
+      payload: structuredClone(event.payload),
+      ...(DIGEST_PATTERN.test(event.sha256 ?? "")
+        ? { sha256: event.sha256 }
+        : {}),
+    }));
+  const resolvedEvidence = [...evidenceIds(input.evidence)];
+  const governorEvents = input.governor.decisionRecords.map((record) => ({
+    type: "governor.decision",
+    payload: {
+      record: structuredClone(record),
+      authorityObservation: structuredClone(input.authority),
+    },
+  }));
   const document = {
-    schemaVersion: "1.0.0",
+    schemaVersion: "1.1.0",
     kind: "agentflow/build-receipt",
     handoff: {
       id: contract.binding.id,
       sha256: contract.binding.sha256,
     },
-    build: structuredClone(input.build),
+    build: {
+      ...structuredClone(input.build),
+      governedBaseCommit: contract.document.repository.baseCommit,
+    },
     tasks: structuredClone(input.tasks),
     evidence: {
       events: [
-        ...structuredClone(input.evidence.events),
+        ...normalizedEvidenceEvents,
         {
-          type: "governor.decision",
-          action: input.governor.finalDecision,
-          policyVersions: structuredClone(input.governor.policyVersions),
-          decisionRecordHashes: structuredClone(
-            input.governor.decisionRecordHashes,
-          ),
-          decisionRecords: structuredClone(input.governor.decisionRecords),
-          authorityObservation: structuredClone(input.authority),
+          type: "evidence.recorded",
+          payload: { satisfied: resolvedEvidence },
         },
+        ...governorEvents,
       ],
       artifacts: structuredClone(input.evidence.artifacts),
       approvals: structuredClone(input.evidence.approvals),
@@ -257,7 +288,7 @@ export function auditBuildReceipt(receipt, contract) {
   }
   if (
     document.kind !== "agentflow/build-receipt" ||
-    document.schemaVersion !== "1.0.0"
+    document.schemaVersion !== "1.1.0"
   ) {
     throw new ReceiptViolation(
       "UNSUPPORTED_RECEIPT_SCHEMA",
@@ -288,14 +319,25 @@ export function auditBuildReceipt(receipt, contract) {
   const governorEvents = document.evidence.events.filter(
     (event) => event.type === "governor.decision",
   );
-  if (governorEvents.length !== 1) {
+  if (governorEvents.length === 0) {
     throw new ReceiptViolation(
       "INVALID_GOVERNOR_PROVENANCE",
-      "Receipt must contain exactly one Governor completion decision",
+      "Receipt must contain Governor completion decision provenance",
     );
   }
-  verifyBoundContract(contract, governorEvents[0].authorityObservation);
-  assertGovernorProvenance(governorEvents[0], contract);
+  const decisionRecords = governorEvents.map((event) => event.payload?.record);
+  const authorityObservation = governorEvents.at(-1)?.payload?.authorityObservation;
+  const finalRecord = decisionRecords.at(-1);
+  verifyBoundContract(contract, authorityObservation);
+  assertGovernorProvenance(
+    {
+      finalDecision: finalRecord?.decision?.action,
+      policyVersions: [...new Set(decisionRecords.map((record) => record?.policyVersion))],
+      decisionRecordHashes: decisionRecords.map((record) => record?.recordHash),
+      decisionRecords,
+    },
+    contract,
+  );
   assertEvidence(contract, document.evidence);
   return {
     valid: true,

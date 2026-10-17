@@ -20,7 +20,7 @@ function handoffInput({ id, objective, approvedAt }) {
     sources,
   });
   return {
-    schemaVersion: "2.0.0",
+    schemaVersion: "2.1.0",
     kind: "design-intelligence/governed-task-handoff",
     handoffId: id,
     createdAt: "2026-09-16T11:00:00.000Z",
@@ -35,6 +35,10 @@ function handoffInput({ id, objective, approvedAt }) {
       status: "APPROVED",
         approvedBy: "repository-owner",
         approvedAt,
+      approvalReceipt: {
+        kind: "proofloom/execution-approval-receipt",
+        receiptId: `HAR-${"A".repeat(20)}`,
+      },
         stateSha256: authorityStateSha256,
         governanceReportSha256,
         sources,
@@ -212,7 +216,7 @@ export function runDemo() {
         resultCommit: "b".repeat(40),
         integrationCommit: "c".repeat(40),
         changedFiles: ["src/checkout/state.js", "test/checkout.test.js"],
-        validation: [{ command: "npm test", status: "passed" }],
+        validation: [{ command: "npm test", status: "passed", exitCode: 0 }],
       },
     ],
     evidence: {
