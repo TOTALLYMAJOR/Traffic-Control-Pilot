@@ -96,14 +96,16 @@ digest; the original authority remains immutable.
 
 ## Current proof boundary
 
-This repository is the tested protocol reference. A native implementation now
-exists on isolated AgentFlow and ProofLoom integration branches: handoff v2
-ingestion, automatic coordinator decision gates, durable interventions,
-telemetry projection, exact receipt audit, and proposal-only supersession all
-have focused local tests. Those branches are not yet merged, pushed, deployed,
-or exercised against an owner-approved real consuming repository. Production,
-customer, human-acceptance, and outcome claims remain outside the current
-proof.
+This repository is the tested protocol reference. The native AgentFlow and
+ProofLoom integration changes are merged into their respective `main` branches:
+handoff v2 ingestion, automatic coordinator decision gates, durable
+interventions, telemetry projection, exact receipt audit, and proposal-only
+supersession have focused tests. One bounded local QuoteFlow consuming-repository
+pilot recorded a Governor `CONTINUE` decision, integration, a completed receipt,
+and a ProofLoom audit result of `PASS` (see [the pilot record in the backlog](BACKLOG.md#completion-evidence)).
+The 30-run, three-repository, four-week, supersession, outcome-review, and
+human-acceptance gates remain unmet. The pilot does not prove deployment,
+production use, customer acceptance, or measured outcomes.
 
 See [the protocol specification](docs/protocol.md) for rule precedence,
 observation semantics, replay format, and the next AgentFlow integration slice.
