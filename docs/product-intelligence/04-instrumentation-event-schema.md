@@ -106,7 +106,7 @@ Reject or quarantine events when:
 
 ## Current implementation boundary
 
-The AgentFlow integration branch now produces this versioned telemetry
+AgentFlow's merged `main` implementation produces this versioned telemetry
 envelope as an idempotent, privacy-bounded projection and computes metrics in
 separate synthetic, local, CI, hosted, production, and reviewed-outcome
 populations. It does **not** yet persist a pilot analytics stream or establish
