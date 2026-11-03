@@ -24,7 +24,7 @@ with the live checkout when each handoff is approved.
 
 | Task | Priority | Target repository | State | Unlocks |
 | --- | --- | --- | --- | --- |
-| TCP-001 | P0 | Traffic-Control-Plane | Implemented and committed locally; publication pending | Stable integration baseline |
+| TCP-001 | P0 | Traffic-Control-Plane | Completed publication milestone; reference baseline technically verified at `53488c8` | Stable integration baseline |
 | TCP-002 | P0 | AgentFlow | Implemented; native observation proven in one bounded real-repository run | Native observations |
 | TCP-003 | P0 | AgentFlow | Implemented; durable `CONTINUE` and `REQUEST_REPAIR` decisions proven locally | Live control decisions |
 | TCP-004 | P0 | AgentFlow | Projection implemented and tested; live coverage pending | Trustworthy product metrics |
@@ -703,9 +703,27 @@ also preserves the decision history after completion. This closes the bounded
 technical proof only; it does not satisfy TCP-008's 30-run, three-repository,
 four-week, supersession, outcome-review, or human-acceptance gates.
 
+### TCP-001 publication closeout — 2026-11-03
+
+The intended 28-file reference baseline was committed as
+`16e8f56441bcfc1b75778d550aed4a76e62bfdd2`, an ancestor of current published
+`main` at `53488c86be74ae23f74fdedadcd97d8f15467d23`. Fresh isolated validation
+of that exact current revision passed all 50 tests and both demo modes, with
+`PROPOSE_REPLAN -> REQUEST_RECONSIDER -> CONTINUE`, a valid receipt audit,
+deterministic replay, a parseable telemetry schema, and all 16 local Markdown
+links resolving, including the completion-evidence heading. Read-only remote
+readback confirmed the same `main` SHA. This supersedes the earlier local-only
+TCP-001 status at `77e756c` with 48 passing tests.
+
+This closes the technical publication milestone under its five unchanged
+criteria. It does not adopt this revision into a current consumer, authorize
+execution, or establish native integration, deployment, TCP-008 pilot acceptance,
+operator/customer acceptance, or measured product outcomes. This documentation
+closeout performs no new publication or runtime action.
+
 | Task | Current status | Required closeout evidence |
 | --- | --- | --- |
-| TCP-001 | Implemented; 48 tests and both demos pass locally; committed as `77e756c` | Only when authorized, matching remote SHA |
+| TCP-001 | Completed publication milestone; published `53488c8` passes 50 tests and both demos | Matching published source and technical checks verified; broader acceptance gates remain with their original tasks |
 | TCP-002 | Native observation projector implemented, tested, and exercised by the QuoteFlow pilot | Broader representative-run coverage |
 | TCP-003 | Decision service, durable records, runtime adapter, coordinator gates, active-attempt semantics, and governed recovery implemented | Repeated-failure and structural-decision coverage in the acceptance corpus |
 | TCP-004 | Idempotent schema-bound projection and population-separated metric summary implemented | Persisted pilot telemetry and coverage report |
