@@ -81,6 +81,72 @@ from AgentFlow's existing knowledge graph rather than agent statements.
 `files.changed` carries the responsible `taskId`; only a single-task handoff
 may omit it because attribution is unambiguous.
 
+### Single-task native validation evidence
+
+The reducer also represents the already-approved native validation-evidence
+convention through existing task artifact fields:
+
+```json
+{"name":"focused tests","type":"agentflow/native-task-validation-evidence","version":"1.0.0"}
+```
+
+Any artifact with that exact type opts the handoff into these semantics. The
+handoff must have exactly one task, no task dependencies, a nonempty ordered
+`validate` list without blank commands, and nonempty unique required evidence
+labels. Each required label must have exactly one artifact declaration with
+that exact name, type and version, and with `path` omitted. Every native-type
+artifact must bind a required label. Duplicate, conflicting, incomplete,
+unsupported-version, path-based and multi-task declarations fail closed;
+unrelated non-native artifacts are permitted. No command or label alias is
+inferred. This convention adds no wire fields, observation schema or policy
+version, and does not implement Harness Profile portability or `governor.v2`.
+A handoff without the exact native type keeps the legacy cumulative
+reducer behavior, including a handoff containing only an unknown artifact type;
+that legacy result does not establish support for a native convention.
+
+For this convention, `evidence.recorded` is a complete current snapshot with
+explicit `items`, `satisfied` and `contradictory` string arrays. Items are the
+current verified native certificate IDs; satisfaction uses their exact bound
+artifact names. Items and satisfaction replace the previous current snapshot,
+including when the new arrays are empty. Contradictions accumulate from native
+evidence records and remain across attempts. A bare `validation.passed.evidenceId`
+does not supply native satisfaction.
+
+The existing events have the following source correspondence. Sequence numbers
+order the normalized facts; they do not authenticate their native sources.
+
+| Event | Required native source meaning |
+| --- | --- |
+| `authority.observed` | Current verified handoff, repository, snapshot, approval provenance and authority-source bindings |
+| `execution.started` | Actual native build identity and attempt limit; phase becomes `RUNNING` |
+| `attempt.started` | Actual newly created native task-attempt identity/number; phase becomes `RUNNING`; current items, satisfaction and active failure clear |
+| `files.changed` | Repository-derived changed paths attributed to the governed backlog task ID |
+| `impact.assessed` | Existing repository impact and active-task collision records |
+| `evidence.recorded` | Complete current certificate snapshot from the protected native verifier, plus cumulative native contradictions |
+| `validation.failed` | Actual allowed native failure boundary, joined to its failed build/task/attempt and source files; phase becomes `RUNNING` |
+| `validation.passed` | Actual validated transition after a succeeded attempt and passing native validation/log/manifest checks; phase becomes `INTEGRATING` |
+| `integration.requested` | A genuine native integrating transition, when present; never an invented substitute for a validated transition |
+| `execution.integrated` | Actual completed native build; phase becomes `INTEGRATED` |
+
+AgentFlow must verify certificate identity, handoff/build/task/attempt/result
+binding, manifest, ordered validation records and actual log/certificate bytes
+at each evaluation through its existing verifier. Failed, missing, malformed,
+stale, cross-task, cross-build, unordered or unverified records cannot supply
+current proof. Historical failure snapshots must come from their own earlier
+verified native prefixes; missing history cannot be filled from a current
+certificate or a fabricated event. Preserve raw native events even when they
+do not produce an observation event. Do not invent an attempt or phase event
+to make a comparison agree.
+
+The pure reducer checks declaration and normalized snapshot shape; it does not
+authenticate certificates or native records. A synthetic normalized input,
+including the reducer tests, proves deterministic reduction only. Native source
+refusals and full observation/action correspondence require independent tests
+against the same complete native history. A lifecycle test that creates an
+attempt directly must identify it as `TEST_HARNESS_CREATED_NATIVE_ATTEMPT`;
+it does not establish that the governed coordinator authorized a retry. Native
+retry authority and guarded intervention refusals remain unchanged.
+
 ## Signals
 
 Failure fingerprinting hashes normalized failure code, classification,
@@ -93,6 +159,27 @@ Evidence delta compares the current failure with the last occurrence of the
 same fingerprint. Newly discovered evidence scores positively, newly satisfied
 proof counts more strongly, and contradictions count negatively. Evidence
 recorded after the failure updates the current delta.
+
+For the native convention, each failure retains its own attempt's evidence
+snapshot. An active failure compares current evidence with the preceding
+occurrence of that same fingerprint, or its own failure snapshot on the first
+occurrence. Before any failure, delta is zero. Once history exists and no
+failure is active, delta compares current evidence with an empty baseline.
+The reducer recomputes this delta at every prefix, including after validation
+success. Thus historical certificates A/B remain in failure history while
+current evidence can be empty or certificate C. Starting another actual
+attempt clears active failure and repeat count; successful validation also
+clears them. Neither action deletes history or contradictions.
+
+The frozen nine-case synthetic pairing against reference revision `53488c86`
+remains historical failed evidence at **6/9**. Enriching its synthetic inputs
+yielded a diagnostic **9/9**, but did not qualify native source correspondence
+or repair the old pairing. Additional retry-start and post-pass delta
+disagreements motivated the bounded convention clarification above. New native
+qualification must compare the entire observation and decision at each
+exercised source prefix, retain missing-data refusals and uncertain results,
+and preserve legacy comparisons. Matching actions alone do not establish
+whole-observation equality or task acceptance.
 
 Impact delta compares each changed path with the responsible task's ownership,
 then compares broader impacted paths with the handoff's total ownership.
