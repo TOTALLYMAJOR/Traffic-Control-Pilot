@@ -87,7 +87,50 @@ function evidenceSnapshot(evidence) {
   };
 }
 
+function usesNativeValidationEvidence(document) {
+  const type = "agentflow/native-task-validation-evidence";
+  const artifacts = document.tasks.flatMap((task) => task.produces ?? []);
+  const nativeArtifacts = artifacts.filter((artifact) => artifact?.type === type);
+  if (nativeArtifacts.length === 0) {
+    return false;
+  }
+  const task = document.tasks[0];
+  const required = document.proof?.requiredEvidence;
+  const validList = (values) => Array.isArray(values) && values.length > 0 &&
+    values.every((value) => typeof value === "string" && value.trim().length > 0);
+  const validArtifact = (artifact) => artifact?.type === type &&
+    artifact.version === "1.0.0" && artifact.path === undefined;
+  if (
+    document.tasks.length !== 1 ||
+    !Array.isArray(task.dependsOn) || task.dependsOn.length !== 0 ||
+    !validList(task.validate) || !validList(required) ||
+    new Set(required).size !== required.length ||
+    required.some((name) => {
+      const bindings = artifacts.filter((artifact) => artifact?.name === name);
+      return bindings.length !== 1 || !validArtifact(bindings[0]);
+    }) ||
+    nativeArtifacts.some((artifact) => !required.includes(artifact.name) || !validArtifact(artifact))
+  ) {
+    throw new TypeError("Invalid native validation evidence declaration");
+  }
+  return true;
+}
+
+function nativeEvidenceSnapshot(event, requiredEvidence) {
+  if (
+    [event.items, event.satisfied, event.contradictory].some((values) =>
+      !Array.isArray(values) || values.some((value) =>
+        typeof value !== "string" || value.trim().length === 0)) ||
+    event.satisfied.some((name) => !requiredEvidence.includes(name))
+  ) {
+    throw new TypeError("Invalid native validation evidence snapshot");
+  }
+  // These are normalized adapter facts, not certificate authentication.
+  return evidenceSnapshot(event);
+}
+
 export function reduceExecutionEvents(events, { contract }) {
+  const nativeEvidence = usesNativeValidationEvidence(contract.document);
   const ordered = [...events].sort((left, right) => left.sequence - right.sequence);
   if (new Set(ordered.map((event) => event.sequence)).size !== ordered.length) {
     throw new TypeError("Duplicate execution event sequence numbers are invalid");
@@ -130,6 +173,13 @@ export function reduceExecutionEvents(events, { contract }) {
       case "attempt.started":
         state.attempt = event.attempt;
         state.phase = "RUNNING";
+        if (nativeEvidence) {
+          state.evidence.items = [];
+          state.evidence.satisfied = [];
+          state.failure = null;
+          state.failureRepeatCount = 0;
+          currentFailureEvidenceBaseline = null;
+        }
         break;
       case "files.changed":
         state.changedPaths = sortedUnique([
@@ -146,6 +196,16 @@ export function reduceExecutionEvents(events, { contract }) {
         state.activeTaskCollisions = sortedUnique(event.activeTaskCollisions);
         break;
       case "evidence.recorded":
+        if (nativeEvidence) {
+          const snapshot = nativeEvidenceSnapshot(event, contract.document.proof.requiredEvidence);
+          state.evidence = {
+            ...snapshot,
+            contradictory: sortedUnique([
+              ...state.evidence.contradictory, ...snapshot.contradictory,
+            ]),
+          };
+          break;
+        }
         state.evidence = {
           items: sortedUnique([...state.evidence.items, ...(event.items ?? [])]),
           satisfied: sortedUnique([
@@ -177,13 +237,18 @@ export function reduceExecutionEvents(events, { contract }) {
         state.failureRepeatCount = state.failureHistory.filter(
           (failure) => failure.fingerprint === fingerprint,
         ).length;
+        if (nativeEvidence) {
+          state.phase = "RUNNING";
+        }
         break;
       }
       case "validation.passed":
         state.failure = null;
         state.failureRepeatCount = 0;
         currentFailureEvidenceBaseline = null;
-        if (event.evidenceId) {
+        if (nativeEvidence) {
+          state.phase = "INTEGRATING";
+        } else if (event.evidenceId) {
           state.evidence.satisfied = sortedUnique([
             ...state.evidence.satisfied,
             event.evidenceId,
@@ -205,6 +270,15 @@ export function reduceExecutionEvents(events, { contract }) {
       default:
         throw new TypeError(`Unsupported execution event: ${event.type}`);
     }
+  }
+
+  if (nativeEvidence) {
+    state.evidenceDelta = state.failureHistory.length === 0
+      ? computeEvidenceDelta({}, {})
+      : computeEvidenceDelta(
+        state.failure ? currentFailureEvidenceBaseline : {},
+        evidenceSnapshot(state.evidence),
+      );
   }
 
   const taskById = new Map(

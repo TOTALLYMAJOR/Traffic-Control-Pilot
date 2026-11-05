@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { bindContract } from "../src/contracts.js";
+import { evaluateGovernor, GOVERNOR_POLICY_V1 } from "../src/governor.js";
 import {
   computeEvidenceDelta,
   computeImpactDelta,
@@ -127,6 +129,289 @@ test("evidence delta distinguishes learning from repetition", () => {
       direction: "POSITIVE",
     },
   );
+});
+
+const nativeEvidenceType = "agentflow/native-task-validation-evidence";
+const zeroEvidenceDelta = {
+  newItems: [], newlySatisfied: [], newContradictions: [],
+  score: 0, direction: "ZERO",
+};
+
+function nativeContract() {
+  return bindContract({
+    schemaVersion: "2.1.0",
+    kind: "design-intelligence/governed-task-handoff",
+    handoffId: "handoff-native-observation",
+    createdAt: "2026-11-05T00:00:00.000Z",
+    repository: {
+      baseCommit: "a".repeat(40), snapshotSha256: "2".repeat(64),
+      worktreeState: "clean", remote: "https://github.com/example/native.git",
+    },
+    objective: "Qualify native current-attempt observation correspondence",
+    authority: {
+      status: "APPROVED", approvedBy: "repository-owner",
+      approvedAt: "2026-11-05T00:00:00.000Z",
+      approvalReceipt: {
+        kind: "proofloom/execution-approval-receipt",
+        receiptId: `HAR-${"A".repeat(20)}`,
+      },
+      stateSha256: "3".repeat(64), governanceReportSha256: "4".repeat(64),
+      sources: [{ path: "docs/intent.md", sha256: "1".repeat(64) }],
+    },
+    tasks: [{
+      id: "NATIVE-001", title: "Validate current attempt",
+      description: "Run the approved ordered validation commands.",
+      estimateHours: 1, dependsOn: [], owns: ["src"],
+      acceptanceCriteria: ["Current proof remains separate from history"],
+      validate: ["npm test", "npm run check"],
+      produces: [{ name: "focused tests", type: nativeEvidenceType, version: "1.0.0" }],
+    }],
+    proof: {
+      requiredEvidence: ["focused tests"],
+      claimBoundary: "LOCAL_EXECUTION_AND_INTEGRATION",
+    },
+  });
+}
+
+function nativeStart(contract) {
+  return [
+    { type: "authority.observed", authority: {
+      handoffId: contract.document.handoffId,
+      handoffSha256: contract.binding.sha256,
+      repositoryId: contract.document.repository.remote,
+      baseCommit: contract.document.repository.baseCommit,
+      snapshotSha256: contract.document.repository.snapshotSha256,
+      worktreeState: contract.document.repository.worktreeState,
+      authorityStateSha256: contract.document.authority.stateSha256,
+      governanceReportSha256: contract.document.authority.governanceReportSha256,
+      authoritySources: contract.document.authority.sources,
+      approvalAuthority: "HUMAN_OR_REPOSITORY",
+    } },
+    { type: "execution.started", buildId: "native-build", maxAttempts: 4 },
+    { type: "attempt.started", attempt: 1 },
+  ];
+}
+
+function numbered(events) {
+  return events.map((event, index) => ({ sequence: index + 1, ...event }));
+}
+
+function certificateSnapshot(digit, contradictory = []) {
+  // Synthetic normalized input only; native authentication belongs to AgentFlow.
+  return {
+    type: "evidence.recorded", items: [digit.repeat(64)],
+    satisfied: ["focused tests"], contradictory,
+  };
+}
+
+function nativeFailure(signature = "Integration check failed") {
+  return {
+    code: "TEST_FAILED", classification: "deterministic",
+    validation: "npm run check", signature, files: ["src/native.js"],
+    retryable: false,
+  };
+}
+
+test("native current evidence replaces snapshots while failures retain their own attempt", () => {
+  const contract = nativeContract();
+  const failure = nativeFailure();
+  const events = numbered([
+    ...nativeStart(contract),
+    certificateSnapshot("a"),
+    { type: "validation.passed" },
+    { type: "validation.failed", failure },
+    { type: "attempt.started", attempt: 2 },
+    certificateSnapshot("b"),
+    { type: "validation.passed" },
+    { type: "validation.failed", failure },
+    { type: "attempt.started", attempt: 3 },
+    { type: "validation.passed" },
+    certificateSnapshot("c"),
+    { type: "execution.integrated" },
+  ]);
+  const reducePrefix = (length) => reduceExecutionEvents(events.slice(0, length), { contract });
+  const action = (observation) => evaluateGovernor({
+    contract, observation, policy: GOVERNOR_POLICY_V1,
+  }).action;
+  const firstSuccess = reducePrefix(5);
+  assert.equal(firstSuccess.phase, "INTEGRATING");
+  assert.deepEqual(firstSuccess.evidenceDelta, zeroEvidenceDelta);
+  const firstFailure = reducePrefix(6);
+  assert.equal(firstFailure.phase, "RUNNING");
+  assert.equal(action(firstFailure), "REQUEST_REPAIR");
+  const retry = reducePrefix(7);
+  assert.equal(retry.failure, null);
+  assert.equal(retry.failureRepeatCount, 0);
+  assert.deepEqual(retry.evidence, { items: [], satisfied: [], contradictory: [] });
+  assert.equal(action(retry), "CONTINUE");
+  const repeated = reducePrefix(10);
+  assert.equal(repeated.failureRepeatCount, 2);
+  assert.deepEqual(repeated.evidence.items, ["b".repeat(64)]);
+  assert.deepEqual(repeated.evidenceDelta, {
+    newItems: ["b".repeat(64)], newlySatisfied: [], newContradictions: [],
+    score: 1, direction: "POSITIVE",
+  });
+  const beforeCertificate = reducePrefix(12);
+  assert.equal(beforeCertificate.phase, "INTEGRATING");
+  assert.deepEqual(beforeCertificate.evidenceDelta, zeroEvidenceDelta);
+  assert.equal(action(beforeCertificate), "BLOCK_INTEGRATION");
+  const current = reducePrefix(13);
+  assert.deepEqual(current.evidence, {
+    items: ["c".repeat(64)], satisfied: ["focused tests"], contradictory: [],
+  });
+  assert.deepEqual(current.failureHistory, [
+    { fingerprint: fingerprintFailure(failure), evidence: {
+      items: ["a".repeat(64)], satisfied: ["focused tests"], contradictory: [],
+    } },
+    { fingerprint: fingerprintFailure(failure), evidence: {
+      items: ["b".repeat(64)], satisfied: ["focused tests"], contradictory: [],
+    } },
+  ]);
+  assert.deepEqual(current.evidenceDelta, {
+    newItems: ["c".repeat(64)], newlySatisfied: ["focused tests"],
+    newContradictions: [], score: 3, direction: "POSITIVE",
+  });
+  assert.equal(action(current), "CONTINUE");
+  assert.equal(reducePrefix(14).phase, "INTEGRATED");
+});
+
+test("native success ignores bare evidenceId and an explicit empty snapshot revokes current proof", () => {
+  const contract = nativeContract();
+  const events = [
+    ...nativeStart(contract),
+    { type: "validation.passed", evidenceId: "focused tests" },
+  ];
+  const unverified = reduceExecutionEvents(numbered(events), { contract });
+  assert.deepEqual(unverified.evidence.satisfied, []);
+  assert.equal(evaluateGovernor({ contract, observation: unverified,
+    policy: GOVERNOR_POLICY_V1 }).action, "BLOCK_INTEGRATION");
+  const revoked = reduceExecutionEvents(numbered([
+    ...events, certificateSnapshot("a"),
+    { type: "evidence.recorded", items: [], satisfied: [], contradictory: [] },
+  ]), { contract });
+  assert.deepEqual(revoked.evidence, { items: [], satisfied: [], contradictory: [] });
+});
+
+test("native contradictions persist across retry and complete current snapshots", () => {
+  const contract = nativeContract();
+  const observation = reduceExecutionEvents(numbered([
+    ...nativeStart(contract), certificateSnapshot("a", ["focused tests"]),
+    { type: "validation.failed", failure: nativeFailure() },
+    { type: "attempt.started", attempt: 2 },
+    certificateSnapshot("b"), { type: "validation.passed" },
+  ]), { contract });
+  assert.deepEqual(observation.evidence, {
+    items: ["b".repeat(64)], satisfied: ["focused tests"],
+    contradictory: ["focused tests"],
+  });
+  assert.deepEqual(observation.evidenceDelta, {
+    newItems: ["b".repeat(64)], newlySatisfied: ["focused tests"],
+    newContradictions: ["focused tests"], score: 1, direction: "POSITIVE",
+  });
+  assert.equal(evaluateGovernor({ contract, observation,
+    policy: GOVERNOR_POLICY_V1 }).ruleId, "required-evidence-contradicted");
+});
+
+test("native active failure uses the preceding matching fingerprint rather than the last failure", () => {
+  const contract = nativeContract();
+  const first = nativeFailure("Failure X");
+  const other = nativeFailure("Failure Y");
+  const observation = reduceExecutionEvents(numbered([
+    ...nativeStart(contract), certificateSnapshot("a"),
+    { type: "validation.failed", failure: first },
+    { type: "attempt.started", attempt: 2 }, certificateSnapshot("b"),
+    { type: "validation.failed", failure: other },
+    { type: "attempt.started", attempt: 3 }, certificateSnapshot("c"),
+    { type: "validation.failed", failure: first },
+    { type: "evidence.recorded", items: ["a".repeat(64)],
+      satisfied: ["focused tests"], contradictory: [] },
+  ]), { contract });
+  assert.equal(observation.failureRepeatCount, 2);
+  assert.deepEqual(observation.failureHistory.map((entry) => entry.evidence.items), [
+    ["a".repeat(64)], ["b".repeat(64)], ["c".repeat(64)],
+  ]);
+  assert.deepEqual(observation.evidenceDelta, zeroEvidenceDelta);
+});
+
+test("native declaration permits unrelated artifacts without changing the approved command order", () => {
+  const contract = nativeContract();
+  contract.document.tasks[0].produces.push({
+    name: "capability-plan", type: "plan-binding", version: "1.0.0", path: "plan.json",
+  });
+  const before = structuredClone(contract);
+  assert.doesNotThrow(() => reduceExecutionEvents([], { contract }));
+  assert.deepEqual(contract, before);
+});
+
+for (const [name, mutate] of [
+  ["multiple tasks", (document) => document.tasks.push({ ...document.tasks[0], id: "NATIVE-002" })],
+  ["dependency topology", (document) => document.tasks[0].dependsOn.push("NATIVE-002")],
+  ["empty checks", (document) => { document.tasks[0].validate = []; }],
+  ["blank check", (document) => document.tasks[0].validate.push(" ")],
+  ["unsupported version", (document) => { document.tasks[0].produces[0].version = "2.0.0"; }],
+  ["repository path", (document) => { document.tasks[0].produces[0].path = "proof.json"; }],
+  ["duplicate mapping", (document) => document.tasks[0].produces.push({ ...document.tasks[0].produces[0] })],
+  ["conflicting mapping", (document) => document.tasks[0].produces.push({ name: "focused tests", type: "other", version: "1.0.0" })],
+  ["unbound requirement", (document) => document.proof.requiredEvidence.push("other proof")],
+  ["duplicate requirement", (document) => document.proof.requiredEvidence.push("focused tests")],
+  ["empty requirements", (document) => { document.proof.requiredEvidence = []; }],
+  ["undeclared native label", (document) => { document.tasks[0].produces[0].name = "alias"; }],
+]) {
+  test(`native convention refuses ${name} rather than falling back to legacy`, () => {
+    const contract = nativeContract();
+    mutate(contract.document);
+    assert.throws(() => reduceExecutionEvents([], { contract }), /native.*evidence/i);
+  });
+}
+
+for (const event of [
+  { type: "evidence.recorded", items: [], satisfied: [] },
+  { type: "evidence.recorded", items: [], satisfied: "focused tests", contradictory: [] },
+  { type: "evidence.recorded", items: [], satisfied: ["alias"], contradictory: [] },
+]) {
+  test(`native complete snapshots refuse malformed or unbound inputs: ${JSON.stringify(event)}`, () => {
+    const contract = nativeContract();
+    assert.throws(() => reduceExecutionEvents(numbered([
+      ...nativeStart(contract), event,
+    ]), { contract }), /native.*evidence/i);
+  });
+}
+
+test("non-opt-in legacy whole observations retain cumulative evidence and active failure lifetime", () => {
+  const contract = { document: {
+    tasks: [{ id: "LEGACY-001", owns: ["src"], produces: [
+      { name: "focused tests", type: "other-validation-evidence", version: "9.0.0" },
+    ] }], proof: { requiredEvidence: ["focused tests"] },
+  } };
+  const failure = nativeFailure();
+  const fingerprint = fingerprintFailure(failure);
+  const events = numbered([
+    { type: "execution.started", buildId: "legacy-build", maxAttempts: 3 },
+    { type: "attempt.started", attempt: 1 },
+    { type: "evidence.recorded", items: ["A"], satisfied: [], contradictory: [] },
+    { type: "validation.failed", failure },
+    { type: "evidence.recorded", items: ["B"] },
+    { type: "attempt.started", attempt: 2 },
+  ]);
+  const expected = {
+    schema: "traffic-control/execution-observation@1", buildId: "legacy-build",
+    phase: "RUNNING", attempt: 2, maxAttempts: 3, authority: null,
+    evidence: { items: ["A", "B"], satisfied: [], contradictory: [] },
+    changedPaths: [], impactedPaths: [], activeTaskCollisions: [],
+    failure: { ...failure, fingerprint },
+    failureHistory: [{ fingerprint, evidence: { items: ["A"], satisfied: [], contradictory: [] } }],
+    failureRepeatCount: 1,
+    evidenceDelta: { newItems: ["B"], newlySatisfied: [], newContradictions: [], score: 1, direction: "POSITIVE" },
+    impactDelta: { unexpectedChangedPaths: [], unexpectedImpactedPaths: [], activeTaskCollisions: [], expanded: false },
+    structuralConcern: null,
+  };
+  assert.deepEqual(reduceExecutionEvents(events, { contract }), expected);
+  assert.deepEqual(reduceExecutionEvents([
+    ...events, { sequence: 7, type: "validation.passed", evidenceId: "focused tests" },
+  ], { contract }), {
+    ...expected, failure: null, failureRepeatCount: 0,
+    evidence: { ...expected.evidence, satisfied: ["focused tests"] },
+  });
 });
 
 test("impact delta exposes unauthorized expansion and active-task collisions", () => {
